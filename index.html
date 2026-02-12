@@ -1,93 +1,572 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <title>Проект Гігхап – Закритий доступ</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Щоб сайт не індексувався пошуковиками -->
-    <meta name="robots" content="noindex, nofollow">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f3f3f3;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            min-height: 100vh;
-            align-items: center;
-            justify-content: center;
-        }
-        .box {
-            background: #ffffff;
-            padding: 20px 25px;
-            border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
-        }
-        h1 {
-            font-size: 22px;
-            margin-bottom: 10px;
-        }
-        p {
-            margin: 5px 0;
-        }
-        .denied {
-            color: #b00020;
-            font-weight: bold;
-        }
-        .ok {
-            color: #007f3b;
-            font-weight: bold;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ТН 08</title>
+  <style>
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: Arial, sans-serif;
+      background:#f3f3f3;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:16px;
+    }
+    .app{
+      width:min(1100px, 100%);
+      background:#fff;
+      border:1px solid #ddd;
+      border-radius:12px;
+      box-shadow:0 8px 25px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    header{
+      padding:14px 16px;
+      border-bottom:1px solid #eee;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    header h1{
+      margin:0;
+      font-size:18px;
+    }
+    .content{
+      display:grid;
+      grid-template-columns: 1fr 330px;
+      gap:0;
+    }
+    .zones{
+      padding:16px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+    }
+    .zone{
+      background:#fafafa;
+      border:1px dashed #bbb;
+      border-radius:12px;
+      min-height:320px;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    .zone-title{
+      padding:10px 12px;
+      border-bottom:1px solid #e9e9e9;
+      background:#fff;
+      font-weight:700;
+      font-size:14px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    /* ВИРІВНЮВАННЯ ПО ВЕРХУ + ШИРИНА ЗОНИ */
+    .zone-body{
+      flex:1;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:12px;
+      padding-top:14px;
+      overflow:auto;
+    }
+    img{
+      width:100%;
+      height:auto;
+      object-fit:contain;
+      border-radius:10px;
+      background:#fff;
+      border:1px solid #e6e6e6;
+      display:block;
+    }
+
+    .placeholder{
+      color:#888;
+      font-size:13px;
+      text-align:center;
+      padding:8px;
+      width:100%;
+    }
+
+    aside{
+      border-left:1px solid #eee;
+      padding:16px;
+      background:#fcfcfc;
+    }
+    .btn{
+      width:100%;
+      padding:10px 12px;
+      margin:6px 0;
+      border:none;
+      border-radius:10px;
+      cursor:pointer;
+      font-weight:700;
+    }
+    .primary{ background:#1677ff; color:#fff; }
+    .secondary{ background:#111; color:#fff; }
+    .ghost{ background:#eaeaea; color:#111; }
+
+    .row{
+      display:flex;
+      gap:10px;
+      margin-top:12px;
+    }
+    .row > *{ flex:1; }
+
+    .card{
+      margin-top:14px;
+      padding:12px;
+      background:#fff;
+      border:1px solid #eee;
+      border-radius:12px;
+    }
+    .card h3{
+      margin:0 0 10px 0;
+      font-size:14px;
+    }
+    .meta{
+      font-size:13px;
+      color:#222;
+      display:grid;
+      gap:6px;
+    }
+    .meta b{ color:#000; }
+    .small{
+      font-size:12px;
+      color:#666;
+      margin-top:8px;
+      line-height:1.35;
+      word-break:break-word;
+    }
+
+    .field{
+      display:grid;
+      gap:6px;
+      margin:10px 0 6px;
+      max-width:100%;
+    }
+    .field label{
+      font-size:12px;
+      color:#444;
+      font-weight:700;
+    }
+    .inputs{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+    }
+    .inputs.one{
+      grid-template-columns: 1fr;
+    }
+    .field input{
+      width:100%;
+      padding:10px 10px;
+      border-radius:10px;
+      border:1px solid #ddd;
+      outline:none;
+      font-weight:700;
+      min-width:0;
+    }
+    .field input:focus{ border-color:#1677ff; }
+    .hint{
+      font-size:12px;
+      color:#666;
+      line-height:1.25;
+    }
+
+    .toggle{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-top:8px;
+      font-size:12px;
+      color:#444;
+      user-select:none;
+    }
+    .toggle input{ transform: translateY(1px); }
+
+    @media (max-width: 900px){
+      .content{ grid-template-columns:1fr; }
+      aside{ border-left:none; border-top:1px solid #eee; }
+      .zones{ grid-template-columns:1fr; }
+      .zone{ min-height:280px; }
+    }
+  </style>
 </head>
 <body>
-<div class="box">
-    <!-- Блок при успішному вході -->
-    <div id="content" style="display: none;">
-        <h1 class="ok">Проект Гігхап</h1>
-        <p>Вітаю! У вас є доступ до закритої сторінки.</p>
-        <p>Тут буде ваш контент для користувачів, які отримали посилання від Admin.</p>
-        <!-- СЮДИ ДОДАВАЙ ВЕСЬ НЕОБХІДНИЙ КОНТЕНТ -->
+  <div class="app">
+    <header>
+      <h1>ТН 08</h1>
+      <div style="font-size:12px;color:#666;">Зона 1: завантаження • Зона 2: ч/б з image1</div>
+    </header>
+
+    <div class="content">
+      <div class="zones">
+        <section class="zone">
+          <div class="zone-title">
+            <span>Зона 1 — image1</span>
+            <span id="image1Info" style="font-weight:400;color:#666;font-size:12px;">не завантажено</span>
+          </div>
+          <div class="zone-body">
+            <div class="placeholder" id="zone1Placeholder">
+              Натисни “Завантажити image1” справа і вибери файл зображення.
+            </div>
+            <img id="image1" alt="image1" style="display:none;">
+          </div>
+        </section>
+
+        <section class="zone">
+          <div class="zone-title">
+            <span>Зона 2 — image2</span>
+            <span id="image2Info" style="font-weight:400;color:#666;font-size:12px;">не створено</span>
+          </div>
+          <div class="zone-body">
+            <div class="placeholder" id="zone2Placeholder">
+              Завантаж image1 → налаштуй масштаб/розмір → “Створити image2”.
+            </div>
+            <img id="image2" alt="image2" style="display:none;">
+          </div>
+        </section>
+      </div>
+
+      <aside>
+        <button class="btn primary" id="loadImage1Btn">Завантажити image1 (Зона 1)</button>
+        <input type="file" id="image1File" accept="image/*" style="display:none;">
+
+        <div class="field">
+          <label>Масштаб, %</label>
+          <div class="inputs one">
+            <input id="scalePct" type="number" min="1" max="1000" step="1" value="100" placeholder="100">
+          </div>
+          <div class="hint">Міняє роздільність image2 відносно image1.</div>
+        </div>
+
+        <div class="field">
+          <label>Роздільність image2 (px)</label>
+          <div class="inputs">
+            <input id="outW" type="number" min="1" step="1" value="100" placeholder="Ширина">
+            <input id="outH" type="number" min="1" step="1" value="100" placeholder="Висота">
+          </div>
+
+          <label class="toggle">
+            <input type="checkbox" id="lockRatio" checked>
+            Зберігати пропорції
+          </label>
+
+          <div class="hint">Зберігаємо TXT: тільки Gray, рядок через "."</div>
+        </div>
+
+        <div class="row">
+          <button class="btn secondary" id="createImage2Btn">Створити image2</button>
+          <button class="btn ghost" id="saveImage2Btn">Зберегти image2</button>
+        </div>
+
+        <button class="btn ghost" id="savePixelValuesBtn">Зберегти pixel.txt</button>
+
+        <div class="card">
+          <h3>Параметри image2</h3>
+          <div class="meta">
+            <div>Ширина: <b id="image2-width">—</b></div>
+            <div>Висота: <b id="image2-height">—</b></div>
+            <div>Тип: <b id="image2-color">—</b></div>
+          </div>
+          <div class="small">TXT: тільки матриця (рядки y), значення Gray через "."</div>
+        </div>
+      </aside>
     </div>
+  </div>
 
-    <!-- Блок, якщо ключ не переданий або невірний -->
-    <div id="denied" style="display: none;">
-        <h1 class="denied">Доступ заборонено</h1>
-        <p>Для перегляду цієї сторінки потрібне спеціальне посилання від адміністратора.</p>
-    </div>
-</div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const image1 = document.getElementById('image1');
+      const image2 = document.getElementById('image2');
 
-    <!-- rebuild -->
+      const loadImage1Btn = document.getElementById('loadImage1Btn');
+      const image1File = document.getElementById('image1File');
 
-<script>
-    // ===== НАЛАШТУВАННЯ =====
-    // Секретний ключ (адмін може змінити на будь-який інший)
-    const CORRECT_KEY = "7739"; // змінюй на свій
+      const createImage2Btn = document.getElementById('createImage2Btn');
+      const saveImage2Btn = document.getElementById('saveImage2Btn');
+      const savePixelValuesBtn = document.getElementById('savePixelValuesBtn');
 
+      const image2Width = document.getElementById('image2-width');
+      const image2Height = document.getElementById('image2-height');
+      const image2Color = document.getElementById('image2-color');
 
-    
-    // Назва параметра в посиланні: ?k=...
-    const PARAM_NAME = "k";
-    // ========================
+      const zone1Placeholder = document.getElementById('zone1Placeholder');
+      const zone2Placeholder = document.getElementById('zone2Placeholder');
 
-    const params = new URLSearchParams(window.location.search);
-    const key = params.get(PARAM_NAME);
+      const image1Info = document.getElementById('image1Info');
+      const image2Info = document.getElementById('image2Info');
 
-    const contentBlock = document.getElementById("content");
-    const deniedBlock  = document.getElementById("denied");
+      const outW = document.getElementById('outW');
+      const outH = document.getElementById('outH');
+      const scalePct = document.getElementById('scalePct');
+      const lockRatio = document.getElementById('lockRatio');
 
-    if (key === CORRECT_KEY) {
-        // Правильний ключ – показуємо контент
-        contentBlock.style.display = "block";
-        deniedBlock.style.display = "none";
-    } else {
-        // Нема ключа або неправильний – заборона
-        contentBlock.style.display = "none";
-        deniedBlock.style.display = "block";
-    }
-</script>
+      let image1Loaded = false;
+      let baseW = 0, baseH = 0;
+      let ratio = 1;
+      let syncing = false;
+
+      // ВАЖЛИВО: реальна роздільність створеного image2 (для TXT)
+      let lastW = 0;
+      let lastH = 0;
+
+      function toInt(v){
+        const n = parseInt(String(v).trim(), 10);
+        return Number.isFinite(n) ? n : null;
+      }
+      function clamp(n, min, max){
+        n = Math.max(min, n);
+        if (typeof max === 'number') n = Math.min(max, n);
+        return n;
+      }
+      function setWH(w, h){
+        outW.value = String(Math.max(1, Math.round(w)));
+        outH.value = String(Math.max(1, Math.round(h)));
+      }
+      function calcWHfromScale(){
+        if (!image1Loaded || !baseW || !baseH) return;
+        const pct = clamp(toInt(scalePct.value) ?? 100, 1, 1000);
+        const w = baseW * pct / 100;
+        const h = baseH * pct / 100;
+        setWH(w, h);
+      }
+      function calcScaleFromWH(){
+        if (!image1Loaded || !baseW || !baseH) return;
+        const w = toInt(outW.value);
+        const h = toInt(outH.value);
+        if (!w || !h) return;
+        const pct = Math.round((w / baseW) * 100);
+        scalePct.value = String(clamp(pct, 1, 1000));
+      }
+      function onWChanged(){
+        if (!image1Loaded) return;
+        const w = clamp(toInt(outW.value) ?? 1, 1);
+        if (lockRatio.checked){
+          const h = Math.max(1, Math.round(w / ratio));
+          outH.value = String(h);
+        }
+        calcScaleFromWH();
+      }
+      function onHChanged(){
+        if (!image1Loaded) return;
+        const h = clamp(toInt(outH.value) ?? 1, 1);
+        if (lockRatio.checked){
+          const w = Math.max(1, Math.round(h * ratio));
+          outW.value = String(w);
+        }
+        calcScaleFromWH();
+      }
+
+      // ======= ЗАВАНТАЖЕННЯ image1 =======
+      loadImage1Btn.addEventListener('click', () => image1File.click());
+
+      image1File.addEventListener('change', function() {
+        const file = this.files && this.files[0];
+        if (!file) return;
+
+        const url = URL.createObjectURL(file);
+
+        image1.onload = () => {
+          URL.revokeObjectURL(url);
+          zone1Placeholder.style.display = 'none';
+          image1.style.display = 'block';
+
+          baseW = image1.naturalWidth || image1.width;
+          baseH = image1.naturalHeight || image1.height;
+          ratio = baseW / baseH;
+
+          image1Info.textContent = `${baseW}×${baseH}`;
+          image1Loaded = true;
+
+          syncing = true;
+          scalePct.value = '100';
+          calcWHfromScale();
+          syncing = false;
+        };
+
+        image1.onerror = () => {
+          image1Loaded = false;
+          baseW = baseH = 0;
+          image1Info.textContent = 'помилка';
+          alert('Не вдалося завантажити зображення. Спробуй інший файл.');
+        };
+
+        image1.src = url;
+      });
+
+      // Масштаб -> width/height
+      scalePct.addEventListener('input', () => {
+        if (!image1Loaded) return;
+        if (syncing) return;
+        syncing = true;
+        calcWHfromScale();
+        syncing = false;
+      });
+
+      // width/height -> масштаб (+ пропорції)
+      outW.addEventListener('input', () => {
+        if (!image1Loaded) return;
+        if (syncing) return;
+        syncing = true;
+        onWChanged();
+        syncing = false;
+      });
+
+      outH.addEventListener('input', () => {
+        if (!image1Loaded) return;
+        if (syncing) return;
+        syncing = true;
+        onHChanged();
+        syncing = false;
+      });
+
+      lockRatio.addEventListener('change', () => {
+        if (!image1Loaded) return;
+        if (!lockRatio.checked) return;
+        syncing = true;
+        onWChanged();
+        syncing = false;
+      });
+
+      // ======= СТВОРЕННЯ image2 з image1 (Ч/Б) =======
+      createImage2Btn.addEventListener('click', function() {
+        if (!image1Loaded || !image1.src) {
+          alert('Спочатку завантаж image1 у Зону 1.');
+          return;
+        }
+
+        const width = clamp(toInt(outW.value) ?? 0, 1);
+        const height = clamp(toInt(outH.value) ?? 0, 1);
+
+        // запам'ятали точну роздільність image2 (для TXT!)
+        lastW = width;
+        lastH = height;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(image1, 0, 0, width, height);
+
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const d = imgData.data;
+
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i], g = d[i+1], b = d[i+2];
+          const gray = Math.round(0.299*r + 0.587*g + 0.114*b);
+          d[i] = d[i+1] = d[i+2] = gray;
+        }
+        ctx.putImageData(imgData, 0, 0);
+
+        const dataURL = canvas.toDataURL('image/png');
+        image2.onload = () => {
+          zone2Placeholder.style.display = 'none';
+          image2.style.display = 'block';
+          image2Info.textContent = `${width}×${height}`;
+        };
+        image2.src = dataURL;
+
+        image2Width.textContent = width;
+        image2Height.textContent = height;
+        image2Color.textContent = 'Чорно-біле';
+      });
+
+      // ======= ЗБЕРЕЖЕННЯ image2 =======
+      saveImage2Btn.addEventListener('click', function() {
+        if (!image2.src || image2.style.display === 'none') {
+          alert('Спочатку створіть image2.');
+          return;
+        }
+        const link = document.createElement('a');
+        link.href = image2.src;
+        link.download = 'image2.png';
+        link.click();
+      });
+
+      // ======= TXT: тільки матриця (Gray через ".") =======
+      function pad2(n){ return String(n).padStart(2, '0'); }
+      function getDateStamp(){
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = pad2(d.getMonth() + 1);
+        const day = pad2(d.getDate());
+        const hh = pad2(d.getHours());
+        const mm = pad2(d.getMinutes());
+        const ss = pad2(d.getSeconds());
+        return `${y}${m}${day}_${hh}${mm}${ss}`;
+      }
+
+      async function ensureImageReady(img){
+        // decode() дає гарантію що naturalWidth/naturalHeight доступні
+        if (img.decode) {
+          try { await img.decode(); } catch(e) {}
+        }
+      }
+
+      savePixelValuesBtn.addEventListener('click', async function() {
+        if (!image2.src || image2.style.display === 'none') {
+          alert('Спочатку створіть image2.');
+          return;
+        }
+
+        await ensureImageReady(image2);
+
+        // Беремо РЕАЛЬНУ роздільність створеного image2 (а не CSS-ширину)
+        const w = lastW || image2.naturalWidth;
+        const h = lastH || image2.naturalHeight;
+
+        if (!w || !h) {
+          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
+          return;
+        }
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(image2, 0, 0, w, h);
+
+        const data = ctx.getImageData(0, 0, w, h).data;
+
+        const lines = [];
+        let idx = 0;
+
+        for (let y = 0; y < h; y++) {
+          const row = new Array(w);
+          for (let x = 0; x < w; x++) {
+            // image2 вже ч/б, тому Gray = R
+            row[x] = String(data[idx]);
+            idx += 4;
+          }
+          // Рівно w значень у рядку:
+          lines.push(row.join('.'));
+        }
+
+        const stamp = getDateStamp();
+        const filename = `ImgPix_${stamp}_${w}x${h}.txt`;
+
+        const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      });
+
+    });
+  </script>
 </body>
-</html>
+    </html>
