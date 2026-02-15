@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ТН 16</title>
+  <title>ТН 14</title>
   <style>
     *{ box-sizing:border-box; }
     body{
@@ -74,7 +74,11 @@
       width:100%;
     }
 
-    .img-wrap{ position:relative; width:100%; }
+    /* Обгортка під оверлеї */
+    .img-wrap{
+      position:relative;
+      width:100%;
+    }
     img{
       width:100%;
       height:auto;
@@ -85,7 +89,8 @@
       display:block;
     }
 
-    .blue-svg{
+    /* (залишили) SVG-оверлей під "неправильний чотиригранник" (червоний) */
+    .crop-svg{
       position:absolute;
       inset:0;
       width:100%;
@@ -93,22 +98,69 @@
       pointer-events:none;
       display:none;
     }
+    .crop-dim{
+      fill: rgba(0,0,0,.18);
+      fill-rule: evenodd;
+    }
+    .crop-outline{
+      fill: transparent;
+      stroke: #ff3b30;
+      stroke-width: 2;
+      stroke-dasharray: 7 6;
+      vector-effect: non-scaling-stroke;
+    }
+
+    /* SVG-оверлей ліній + прямокутника перетину (тепер інтерактивний при чекові) */
+    .blue-svg{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      display:none;
+
+      /* Важливо:
+         - За замовчуванням НЕ ловимо мишку (щоб можна було скролити зону/виділяти тощо)
+         - Коли вмикаємо "Показати обріз" -> додаємо клас .editable і дозволяємо перетягування */
+      pointer-events:none;
+    }
+    .blue-svg.editable{
+      pointer-events:auto;
+    }
+
+    /* Сині (або будь-які) лінії — робимо клікабельними по обводці */
     .blue-line{
       fill: transparent;
       stroke: #1677ff;
       stroke-width: 2;
       stroke-dasharray: 7 6;
       vector-effect: non-scaling-stroke;
+
+      /* Дозволяємо ловити події по штриху */
+      pointer-events: stroke;
     }
-    
+
+    /* Прямокутник перетину — ви просили колір змінювати в CSS.
+       Зараз залишив "жовтий" як приклад. */
     .blue-rect{
-  fill: rgba(255, 215, 0, .18); /* жовта прозора заливка */
-  stroke: #FFD700;             /* жовта обводка */
-  stroke-width: 2;
-  stroke-dasharray: 7 6;
-  vector-effect: non-scaling-stroke;
-  display:none;
+      fill: rgba(255, 215, 0, .18);
+      stroke: #FFD700;
+      stroke-width: 2;
+      stroke-dasharray: 7 6;
+      vector-effect: non-scaling-stroke;
+      display:none; /* показуємо лише коли увімкнено "Показати обріз" */
+      pointer-events:none;
     }
+
+    /* Хендли (кружечки) для перетягування ліній */
+    .handle{
+      fill:#fff;
+      stroke:#1677ff;
+      stroke-width:2;
+      vector-effect: non-scaling-stroke;
+      pointer-events: all;
+    }
+    .handle-ew{ cursor: ew-resize; }
+    .handle-ns{ cursor: ns-resize; }
 
     .placeholder{
       color:#888;
@@ -151,7 +203,10 @@
       border:1px solid #eee;
       border-radius:12px;
     }
-    .card h3{ margin:0 0 10px 0; font-size:14px; }
+    .card h3{
+      margin:0 0 10px 0;
+      font-size:14px;
+    }
     .meta{
       font-size:13px;
       color:#222;
@@ -230,31 +285,26 @@
     }
     .toggle-pill input{ transform:none; margin:0; }
 
-    .radio-row{
+    /* Перемикач режиму обрізу image1 */
+    .seg{
       display:flex;
       gap:8px;
-      flex-wrap:wrap;
-      margin-top:6px;
+      margin-top:8px;
     }
-    .radio-pill{
+    .seg button{
       flex:1;
-      min-width:0;
+      padding:10px 10px;
+      border-radius:10px;
       border:1px solid #ddd;
       background:#fff;
-      border-radius:10px;
-      padding:10px 10px;
-      display:flex;
-      align-items:center;
-      gap:8px;
-      cursor:pointer;
-      user-select:none;
-      font-size:12px;
       font-weight:700;
-      color:#111;
-      justify-content:center;
-      white-space:nowrap;
+      cursor:pointer;
+      font-size:12px;
     }
-    .radio-pill input{ margin:0; }
+    .seg button.active{
+      border-color:#1677ff;
+      box-shadow:0 0 0 2px rgba(22,119,255,.12);
+    }
 
     @media (max-width: 900px){
       .content{ grid-template-columns:1fr; }
@@ -267,9 +317,9 @@
 <body>
   <div class="app">
     <header>
-      <h1>ТН 16</h1>
+      <h1>ТН 14</h1>
       <div style="font-size:12px;color:#666;">
-        колір обрізання 
+        Зона 1: завантаження • Зона 2: image2 • Сині/жовтий прямокутник: лінії можна рухати після “Показати обріз”
       </div>
     </header>
 
@@ -301,12 +351,28 @@
             <div class="img-wrap" id="image2Wrap" style="display:none;">
               <img id="image2" alt="image2" style="display:none;">
 
+              <!-- (залишили) ЧЕРВОНИЙ оверлей контуру (не чіпали) -->
+              <svg class="crop-svg" id="cropSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <path class="crop-dim" id="cropDimPath" d=""></path>
+                <polygon class="crop-outline" id="cropPoly" points=""></polygon>
+              </svg>
+
+              <!-- Оверлей ЛІНІЙ (можна перетягувати в режимі “Показати обріз”) -->
               <svg class="blue-svg" id="blueSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <line class="blue-line" id="blueLeft"   x1="0" y1="0" x2="0" y2="0"></line>
-                <line class="blue-line" id="blueRight"  x1="0" y1="0" x2="0" y2="0"></line>
-                <line class="blue-line" id="blueTop"    x1="0" y1="0" x2="0" y2="0"></line>
-                <line class="blue-line" id="blueBottom" x1="0" y1="0" x2="0" y2="0"></line>
+                <!-- Лінії -->
+                <line class="blue-line" id="blueLeft"></line>
+                <line class="blue-line" id="blueRight"></line>
+                <line class="blue-line" id="blueTop"></line>
+                <line class="blue-line" id="blueBottom"></line>
+
+                <!-- Прямокутник перетину -->
                 <rect class="blue-rect" id="blueRect" x="0" y="0" width="0" height="0"></rect>
+
+                <!-- Хендли для перетягування (кружечки) -->
+                <circle class="handle handle-ew" id="hLeft" r="7"></circle>
+                <circle class="handle handle-ew" id="hRight" r="7"></circle>
+                <circle class="handle handle-ns" id="hTop" r="7"></circle>
+                <circle class="handle handle-ns" id="hBottom" r="7"></circle>
               </svg>
             </div>
           </div>
@@ -337,32 +403,25 @@
             Зберігати пропорції
           </label>
 
-          <div class="hint">Сині лінії рахуються по поточному image2 (ч/б або контур).</div>
+          <div class="hint">Після “Показати обріз” можна тягнути лінії (кружечки) прямо на зображенні.</div>
         </div>
 
-        <button class="btn secondary" id="createImage2Btn" style="margin-top:6px;">Створити image2 (ч/б)</button>
-        <button class="btn ghost" id="contourBtn">Контур (0/255) з image2</button>
-        <button class="btn ghost" id="contour01Btn">Контур 0/1 (з image2)</button>
+        <button class="btn secondary" id="createImage2Btn" style="margin:0;">Створити image2 (ч/б)</button>
 
-        <button class="btn ghost" id="blueLinesBtn">Сині лінії (ліва/права/верх/низ)</button>
+        <button class="btn ghost" id="blueLinesBtn">Порахувати лінії (ліва/права/верх/низ)</button>
 
-        <div class="field">
-          <label>Обрізати image1 у зоні 1</label>
-          <div class="radio-row">
-            <label class="radio-pill" title="Вставити в Зону 2 кольоровий обріз з image1">
-              <input type="radio" name="cropMode" id="cropModeColor" checked>
-              у кольорі
-            </label>
-            <label class="radio-pill" title="Вставити в Зону 2 ч/б обріз з image1">
-              <input type="radio" name="cropMode" id="cropModeBW">
-              у ч-б
-            </label>
+        <!-- Перемикач: обрізати image1 у кольорі / у ч-б -->
+        <div class="field" style="margin-top:10px;">
+          <label>Обрізати image1 у:</label>
+          <div class="seg" role="group" aria-label="Режим обрізу">
+            <button id="cropModeColor" class="active" type="button">Кольорі</button>
+            <button id="cropModeBW" type="button">Ч/Б</button>
           </div>
-          <div class="hint">“Обрізати” ріже саме image1, використовуючи синій прямокутник (координати з image2).</div>
+          <div class="hint">Кнопка “Обрізати” виріже з image1 область, що відповідає прямокутнику на image2, і вставить у Зону 2.</div>
         </div>
 
         <div class="row">
-          <label class="toggle-pill" title="Показати прямокутник, який утворився перетином синіх ліній">
+          <label class="toggle-pill" title="Показати прямокутник перетину ліній та увімкнути перетягування">
             <input type="checkbox" id="showCropChk">
             Показати обріз
           </label>
@@ -389,13 +448,41 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // =========================================================
-      // 1) DOM
-      // =========================================================
+
+      // =========================
+      // DOM-елементи
+      // =========================
       const image1 = document.getElementById('image1');
       const image2 = document.getElementById('image2');
-      const image2Wrap = document.getElementById('image2Wrap');
 
+      const image2Wrap = document.getElementById('image2Wrap');
+      const zone1Placeholder = document.getElementById('zone1Placeholder');
+      const zone2Placeholder = document.getElementById('zone2Placeholder');
+
+      const image1Info = document.getElementById('image1Info');
+      const image2Info = document.getElementById('image2Info');
+
+      const loadImage1Btn = document.getElementById('loadImage1Btn');
+      const image1File = document.getElementById('image1File');
+
+      const createImage2Btn = document.getElementById('createImage2Btn');
+      const blueLinesBtn = document.getElementById('blueLinesBtn');
+      const showCropChk = document.getElementById('showCropChk');
+      const cropBtn = document.getElementById('cropBtn');
+
+      const outW = document.getElementById('outW');
+      const outH = document.getElementById('outH');
+      const scalePct = document.getElementById('scalePct');
+      const lockRatio = document.getElementById('lockRatio');
+
+      const image2Width = document.getElementById('image2-width');
+      const image2Height = document.getElementById('image2-height');
+      const image2Color = document.getElementById('image2-color');
+
+      const saveImage2Btn = document.getElementById('saveImage2Btn');
+      const savePixelValuesBtn = document.getElementById('savePixelValuesBtn');
+
+      // Оверлей ліній
       const blueSvg = document.getElementById('blueSvg');
       const blueLeft = document.getElementById('blueLeft');
       const blueRight = document.getElementById('blueRight');
@@ -403,59 +490,40 @@
       const blueBottom = document.getElementById('blueBottom');
       const blueRect = document.getElementById('blueRect');
 
-      const blueLinesBtn = document.getElementById('blueLinesBtn');
-      const showCropChk = document.getElementById('showCropChk');
-      const cropBtn = document.getElementById('cropBtn');
+      // Хендли
+      const hLeft = document.getElementById('hLeft');
+      const hRight = document.getElementById('hRight');
+      const hTop = document.getElementById('hTop');
+      const hBottom = document.getElementById('hBottom');
 
-      const cropModeColor = document.getElementById('cropModeColor');
-      const cropModeBW = document.getElementById('cropModeBW');
+      // Перемикач режиму обрізу image1
+      const cropModeColorBtn = document.getElementById('cropModeColor');
+      const cropModeBWBtn = document.getElementById('cropModeBW');
 
-      const loadImage1Btn = document.getElementById('loadImage1Btn');
-      const image1File = document.getElementById('image1File');
-
-      const createImage2Btn = document.getElementById('createImage2Btn');
-      const contourBtn = document.getElementById('contourBtn');
-      const contour01Btn = document.getElementById('contour01Btn');
-
-      const saveImage2Btn = document.getElementById('saveImage2Btn');
-      const savePixelValuesBtn = document.getElementById('savePixelValuesBtn');
-
-      const image2Width = document.getElementById('image2-width');
-      const image2Height = document.getElementById('image2-height');
-      const image2Color = document.getElementById('image2-color');
-
-      const zone1Placeholder = document.getElementById('zone1Placeholder');
-      const zone2Placeholder = document.getElementById('zone2Placeholder');
-
-      const image1Info = document.getElementById('image1Info');
-      const image2Info = document.getElementById('image2Info');
-
-      const outW = document.getElementById('outW');
-      const outH = document.getElementById('outH');
-      const scalePct = document.getElementById('scalePct');
-      const lockRatio = document.getElementById('lockRatio');
-
-      // =========================================================
-      // 2) STATE
-      // =========================================================
+      // =========================
+      // Стан
+      // =========================
       let image1Loaded = false;
-      let baseW = 0, baseH = 0;
+      let baseW = 0, baseH = 0;     // натуральні розміри image1
       let ratio = 1;
       let syncing = false;
 
-      let lastW = 0;
+      let lastW = 0;               // фактичні розміри image2 (натуральні)
       let lastH = 0;
 
-      let exportMode = 'gray255';
+      // Режим обрізу image1: 'color' або 'bw'
+      let cropMode = 'color';
 
-      // ВАЖЛИВО:
-      // Тут leftX/rightX/topY/bottomY — це КООРДИНАТИ ЛІНІЙ у просторі image2.
-      // Для "двох підряд" ми ставимо лінію по центру пари => значення може бути .5
+      // Лінії: зберігаємо натуральні координати image2
+      // leftX/rightX — колонки, topY/bottomY — рядки
       let lastBlue = null; // { leftX, rightX, topY, bottomY, w, h }
 
-      // =========================================================
-      // 3) UTILS
-      // =========================================================
+      // Перетягування
+      let drag = null;     // { type: 'L'|'R'|'T'|'B', pointerId }
+
+      // =========================
+      // Утиліти
+      // =========================
       function toInt(v){
         const n = parseInt(String(v).trim(), 10);
         return Number.isFinite(n) ? n : null;
@@ -472,7 +540,9 @@
       function calcWHfromScale(){
         if (!image1Loaded || !baseW || !baseH) return;
         const pct = clamp(toInt(scalePct.value) ?? 100, 1, 1000);
-        setWH(baseW * pct / 100, baseH * pct / 100);
+        const w = baseW * pct / 100;
+        const h = baseH * pct / 100;
+        setWH(w, h);
       }
       function calcScaleFromWH(){
         if (!image1Loaded || !baseW || !baseH) return;
@@ -486,7 +556,8 @@
         if (!image1Loaded) return;
         const w = clamp(toInt(outW.value) ?? 1, 1);
         if (lockRatio.checked){
-          outH.value = String(Math.max(1, Math.round(w / ratio)));
+          const h = Math.max(1, Math.round(w / ratio));
+          outH.value = String(h);
         }
         calcScaleFromWH();
       }
@@ -494,7 +565,8 @@
         if (!image1Loaded) return;
         const h = clamp(toInt(outH.value) ?? 1, 1);
         if (lockRatio.checked){
-          outW.value = String(Math.max(1, Math.round(h * ratio)));
+          const w = Math.max(1, Math.round(h * ratio));
+          outW.value = String(w);
         }
         calcScaleFromWH();
       }
@@ -502,96 +574,100 @@
         if (img.decode) { try { await img.decode(); } catch(e) {} }
       }
 
-      // =========================================================
-      // 4) BLUE OVERLAY
-      // =========================================================
-      function hideBlueOverlay(){
-        blueSvg.style.display = 'none';
-        blueRect.style.display = 'none';
-        lastBlue = null;
-      }
       function setBlueViewBox(w, h){
         blueSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
       }
 
       /**
-       * Малюємо лінії рівно на координатах leftX/rightX/topY/bottomY.
-       * (НЕ додаємо +0.5, бо тепер координата може бути .5 і це вже центр)
+       * Малюємо 4 лінії + прямокутник перетину + позиції хендлів.
+       * showRect = true -> показуємо жовтий прямокутник.
        */
-      
-      function setBlueLinesAndMaybeRect(blue, showRect){
-        const { leftX, rightX, topY, bottomY, w, h } = blue; 
-        
+      function renderBlueOverlay(blue, showRect){
+        const { leftX, rightX, topY, bottomY, w, h } = blue;
         setBlueViewBox(w, h);
 
-        const xL = leftX;
-        const xR = rightX;
-        const yT = topY;
-        const yB = bottomY;
+        // +0.5 щоб лінія йшла через центр пікселя
+        const xL = leftX + 0.5;
+        const xR = rightX + 0.5;
+        const yT = topY + 0.5;
+        const yB = bottomY + 0.5;
 
-        blueLeft.setAttribute('x1', String(xL));
-        blueLeft.setAttribute('x2', String(xL));
-        blueLeft.setAttribute('y1', '0');
-        blueLeft.setAttribute('y2', String(h));
+        // Вертикальні лінії
+        blueLeft.setAttribute('x1', xL); blueLeft.setAttribute('x2', xL);
+        blueLeft.setAttribute('y1', 0);  blueLeft.setAttribute('y2', h);
 
-        blueRight.setAttribute('x1', String(xR));
-        blueRight.setAttribute('x2', String(xR));
-        blueRight.setAttribute('y1', '0');
-        blueRight.setAttribute('y2', String(h));
+        blueRight.setAttribute('x1', xR); blueRight.setAttribute('x2', xR);
+        blueRight.setAttribute('y1', 0);  blueRight.setAttribute('y2', h);
 
-        blueTop.setAttribute('x1', '0');
-        blueTop.setAttribute('x2', String(w));
-        blueTop.setAttribute('y1', String(yT));
-        blueTop.setAttribute('y2', String(yT));
+        // Горизонтальні лінії
+        blueTop.setAttribute('x1', 0);  blueTop.setAttribute('x2', w);
+        blueTop.setAttribute('y1', yT); blueTop.setAttribute('y2', yT);
 
-        blueBottom.setAttribute('x1', '0');
-        blueBottom.setAttribute('x2', String(w));
-        blueBottom.setAttribute('y1', String(yB));
-        blueBottom.setAttribute('y2', String(yB));
+        blueBottom.setAttribute('x1', 0);  blueBottom.setAttribute('x2', w);
+        blueBottom.setAttribute('y1', yB); blueBottom.setAttribute('y2', yB);
 
-        blueSvg.style.display = 'block';
-
+        // Прямокутник перетину ліній
         if (showRect){
           const rx = Math.min(xL, xR);
           const ry = Math.min(yT, yB);
-          const rw = Math.max(1e-6, Math.abs(xR - xL)); // може бути дробовий
-          const rh = Math.max(1e-6, Math.abs(yB - yT));
-          blueRect.setAttribute('x', String(rx));
-          blueRect.setAttribute('y', String(ry));
-          blueRect.setAttribute('width', String(rw));
-          blueRect.setAttribute('height', String(rh));
+          const rw = Math.max(1, Math.abs(xR - xL));
+          const rh = Math.max(1, Math.abs(yB - yT));
+          blueRect.setAttribute('x', rx);
+          blueRect.setAttribute('y', ry);
+          blueRect.setAttribute('width', rw);
+          blueRect.setAttribute('height', rh);
           blueRect.style.display = 'block';
         } else {
           blueRect.style.display = 'none';
         }
+
+        // Хендли ставимо посередині ліній (для зручного "захвату")
+        hLeft.setAttribute('cx', xL);
+        hLeft.setAttribute('cy', h/2);
+
+        hRight.setAttribute('cx', xR);
+        hRight.setAttribute('cy', h/2);
+
+        hTop.setAttribute('cx', w/2);
+        hTop.setAttribute('cy', yT);
+
+        hBottom.setAttribute('cx', w/2);
+        hBottom.setAttribute('cy', yB);
+
+        // Показуємо SVG
+        blueSvg.style.display = 'block';
       }
 
-      // =========================================================
-      // 5) CLEAR ZONE 2
-      // =========================================================
+      function hideBlueOverlay(){
+        blueSvg.style.display = 'none';
+        blueSvg.classList.remove('editable');
+        blueRect.style.display = 'none';
+        lastBlue = null;
+      }
+
+      // =========================
+      // Очистка Зони 2
+      // =========================
       function clearZone2(){
         image2.removeAttribute('src');
         image2.style.display = 'none';
-
         image2Wrap.style.display = 'none';
         zone2Placeholder.style.display = 'block';
 
         image2Info.textContent = 'не створено';
-
         image2Width.textContent = '—';
         image2Height.textContent = '—';
         image2Color.textContent = '—';
 
         lastW = 0; lastH = 0;
-        exportMode = 'gray255';
 
         showCropChk.checked = false;
         hideBlueOverlay();
       }
 
-      // =========================================================
-      // 6) LOAD IMAGE1
-      // =========================================================
+      // =========================
+      // Завантаження image1
+      // =========================
       loadImage1Btn.addEventListener('click', () => image1File.click());
 
       image1File.addEventListener('change', function() {
@@ -601,7 +677,6 @@
         clearZone2();
 
         const url = URL.createObjectURL(file);
-
         image1.onload = () => {
           URL.revokeObjectURL(url);
           zone1Placeholder.style.display = 'none';
@@ -630,15 +705,15 @@
         image1.src = url;
       });
 
-      // =========================================================
-      // 7) SYNC FIELDS
-      // =========================================================
+      // Масштаб -> width/height
       scalePct.addEventListener('input', () => {
         if (!image1Loaded || syncing) return;
         syncing = true;
         calcWHfromScale();
         syncing = false;
       });
+
+      // width/height -> масштаб (+ пропорції)
       outW.addEventListener('input', () => {
         if (!image1Loaded || syncing) return;
         syncing = true;
@@ -651,6 +726,7 @@
         onHChanged();
         syncing = false;
       });
+
       lockRatio.addEventListener('change', () => {
         if (!image1Loaded) return;
         if (!lockRatio.checked) return;
@@ -659,9 +735,9 @@
         syncing = false;
       });
 
-      // =========================================================
-      // 8) CREATE IMAGE2 (BW)
-      // =========================================================
+      // =========================
+      // Створення image2 з image1 (ч/б)
+      // =========================
       createImage2Btn.addEventListener('click', function() {
         if (!image1Loaded || !image1.src) {
           alert('Спочатку завантаж image1 у Зону 1.');
@@ -670,18 +746,16 @@
 
         const width = clamp(toInt(outW.value) ?? 0, 1);
         const height = clamp(toInt(outH.value) ?? 0, 1);
-
-        lastW = width;
-        lastH = height;
+        lastW = width; lastH = height;
 
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-        ctx.clearRect(0, 0, width, height);
         ctx.drawImage(image1, 0, 0, width, height);
 
+        // Ч/б перетворення
         const imgData = ctx.getImageData(0, 0, width, height);
         const d = imgData.data;
         for (let i = 0; i < d.length; i += 4) {
@@ -691,7 +765,6 @@
         }
         ctx.putImageData(imgData, 0, 0);
 
-        const dataURL = canvas.toDataURL('image/png');
         image2.onload = () => {
           zone2Placeholder.style.display = 'none';
           image2Wrap.style.display = 'block';
@@ -701,402 +774,336 @@
           showCropChk.checked = false;
           hideBlueOverlay();
         };
-        image2.src = dataURL;
+        image2.src = canvas.toDataURL('image/png');
 
         image2Width.textContent = width;
         image2Height.textContent = height;
         image2Color.textContent = 'Чорно-біле';
-        exportMode = 'gray255';
       });
 
-      // =========================================================
-      // 9) CONTOUR (Sobel)
-      // =========================================================
-      function getAdaptiveThreshold(edgeMag){
-        const n = edgeMag.length;
-        if (!n) return 80;
-        let sum = 0;
-        for (let i = 0; i < n; i++) sum += edgeMag[i];
-        const mean = sum / n;
-
-        let v = 0;
-        for (let i = 0; i < n; i++){
-          const d = edgeMag[i] - mean;
-          v += d * d;
-        }
-        const std = Math.sqrt(v / n);
-        const t = mean + 0.5 * std;
-        return Math.max(10, Math.min(255, t));
-      }
-
-      function makeContoursCanvasFromImage(img, w, h, mode01){
+      // =========================
+      // Пошук 4 ліній за мін. сумою (простий варіант)
+      // =========================
+      function computeMinLinesSimple(w, h){
         const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-        ctx.drawImage(img, 0, 0, w, h);
-        const imgData = ctx.getImageData(0, 0, w, h);
-        const d = imgData.data;
-
-        const gray = new Uint8ClampedArray(w * h);
-        for (let i = 0, p = 0; i < d.length; i += 4, p++){
-          gray[p] = d[i];
-        }
-
-        const mag = new Float32Array(w * h);
-        const gxK = [-1,0,1,-2,0,2,-1,0,1];
-        const gyK = [-1,-2,-1,0,0,0,1,2,1];
-
-        for (let y = 1; y < h - 1; y++){
-          for (let x = 1; x < w - 1; x++){
-            let gx = 0, gy = 0;
-            let k = 0;
-            for (let ky = -1; ky <= 1; ky++){
-              for (let kx = -1; kx <= 1; kx++){
-                const v = gray[(y + ky) * w + (x + kx)];
-                gx += v * gxK[k];
-                gy += v * gyK[k];
-                k++;
-              }
-            }
-            const m = Math.min(255, Math.hypot(gx, gy));
-            mag[y * w + x] = m;
-          }
-        }
-
-        const t = getAdaptiveThreshold(mag);
-
-        const out = ctx.createImageData(w, h);
-        const od = out.data;
-
-        for (let p = 0; p < w*h; p++){
-          const isEdge = mag[p] >= t ? 1 : 0;
-          const disp = isEdge ? 0 : 255;
-          const i = p * 4;
-          od[i] = od[i+1] = od[i+2] = disp;
-          od[i+3] = 255;
-        }
-
-        ctx.putImageData(out, 0, 0);
-        exportMode = mode01 ? 'contour01' : 'gray255';
-        return canvas;
-      }
-
-      async function setImage2FromCanvas(canvas, labelText){
-        const dataURL = canvas.toDataURL('image/png');
-        image2.onload = () => {
-          zone2Placeholder.style.display = 'none';
-          image2Wrap.style.display = 'block';
-          image2.style.display = 'block';
-          image2Info.textContent = labelText;
-
-          showCropChk.checked = false;
-          hideBlueOverlay();
-        };
-        image2.src = dataURL;
-      }
-
-      contourBtn.addEventListener('click', async function(){
-        if (!image2.src || image2.style.display === 'none') {
-          alert('Спочатку створіть image2 у Зоні 2.');
-          return;
-        }
-        await ensureImageReady(image2);
-
-        const w = lastW || image2.naturalWidth;
-        const h = lastH || image2.naturalHeight;
-        if (!w || !h){
-          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
-          return;
-        }
-
-        const canvas = makeContoursCanvasFromImage(image2, w, h, false);
-        await setImage2FromCanvas(canvas, `${w}×${h} (контур)`);
-
-        lastW = w; lastH = h;
-        image2Width.textContent = w;
-        image2Height.textContent = h;
-        image2Color.textContent = 'Контури (0/255)';
-      });
-
-      contour01Btn.addEventListener('click', async function(){
-        if (!image2.src || image2.style.display === 'none') {
-          alert('Спочатку створіть image2 у Зоні 2.');
-          return;
-        }
-        await ensureImageReady(image2);
-
-        const w = lastW || image2.naturalWidth;
-        const h = lastH || image2.naturalHeight;
-        if (!w || !h){
-          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
-          return;
-        }
-
-        const canvas = makeContoursCanvasFromImage(image2, w, h, true);
-        await setImage2FromCanvas(canvas, `${w}×${h} (контур 0/1)`);
-
-        lastW = w; lastH = h;
-        image2Width.textContent = w;
-        image2Height.textContent = h;
-        image2Color.textContent = 'Контури (0/1 для TXT)';
-      });
-
-      // =========================================================
-      // 10) СИНІ ЛІНІЇ — НОВЕ ПРАВИЛО "ДВІ ПІДРЯД МАКСИМАЛЬНІ"
-      //
-      // Логіка:
-      // 1) Рахуємо суми:
-      //    - colSums[x] = сума інтенсивностей (0..255) по колонці x
-      //    - rowSums[y] = сума інтенсивностей (0..255) по рядку y
-      //
-      // 2) Для кожної зони (ліва/права/верх/низ) шукаємо ПАРУ підряд з МАКС сумою:
-      //      pairSum(i) = sum(i) + sum(i+1)
-      //    де i та i+1 лежать у межах зони.
-      //
-      // 3) ЛІНІЮ ставимо ПО ЦЕНТРУ пари:
-      //      line = i + 1/2  (тобто i + 0.5)
-      //
-      //    Саме тому координати ліній можуть бути дробові (....5).
-      // =========================================================
-      function computeBlueByMaxPair(w, h){
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
+        canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(image2, 0, 0, w, h);
         const data = ctx.getImageData(0, 0, w, h).data;
 
-        const colSums = new Float64Array(w);
-        const rowSums = new Float64Array(h);
+        // Ділимо на половини:
+        const midX = Math.floor(w / 2);
+        const midY = Math.floor(h / 2);
 
-        let idx = 0;
-        for (let y = 0; y < h; y++){
-          let rsum = 0;
+        // Сума колонки (по Y)
+        function colSum(x){
+          let sum = 0;
+          let idx = x * 4;
+          for (let y = 0; y < h; y++){
+            sum += data[idx];     // grayscale в R
+            idx += w * 4;
+          }
+          return sum;
+        }
+
+        // Сума рядка (по X)
+        function rowSum(y){
+          let sum = 0;
+          let idx = (y * w) * 4;
           for (let x = 0; x < w; x++){
-            const v = data[idx]; // R (бо image2 ч/б/контур)
-            rsum += v;
-            colSums[x] += v;
+            sum += data[idx];
             idx += 4;
           }
-          rowSums[y] = rsum;
+          return sum;
         }
 
-        // Межі зон (по чвертях) — як було
-        const leftEnd = Math.max(1, Math.floor(w / 4));
-        const rightStart = Math.min(w-1, Math.floor(w - w / 4));
-        const topEnd = Math.max(1, Math.floor(h / 4));
-        const bottomStart = Math.min(h-1, Math.floor(h - h / 4));
-
-        // Знайти центр пари з МАКС сумою в [a..b]
-        // Умова для пари: старт i, тоді i+1 <= b
-        function bestPairCenterFromArray(arr, a, b){
-          const len = b - a + 1;
-
-          // Якщо в зоні менше 2 елементів — fallback: беремо індекс з макс сумою
-          if (len < 2){
-            let bestI = a;
-            let bestV = -Infinity;
-            for (let i = a; i <= b; i++){
-              const v = arr[i];
-              if (v > bestV){
-                bestV = v;
-                bestI = i;
-              }
-            }
-            return bestI; // лінія співпаде з "піксельною" координатою
-          }
-
-          // Шукаємо пару
-          let bestStart = a;
-          let bestSum = -Infinity;
-          for (let i = a; i <= b - 1; i++){
-            const s = arr[i] + arr[i+1];
-            if (s > bestSum){
-              bestSum = s;
-              bestStart = i;
-            }
-          }
-
-          // Центр пари між i та i+1
-          return bestStart + 0.5;
+        // Ліва половина: мінімальна колонка
+        let bestLeftX = 0, bestLeftSum = Infinity;
+        for (let x = 0; x < Math.max(1, midX); x++){
+          const s = colSum(x);
+          if (s < bestLeftSum){ bestLeftSum = s; bestLeftX = x; }
         }
 
-        const leftX = bestPairCenterFromArray(colSums, 0, leftEnd - 1);
-        const rightX = bestPairCenterFromArray(colSums, rightStart, w - 1);
-        const topY = bestPairCenterFromArray(rowSums, 0, topEnd - 1);
-        const bottomY = bestPairCenterFromArray(rowSums, bottomStart, h - 1);
+        // Права половина: мінімальна колонка
+        let bestRightX = midX, bestRightSum = Infinity;
+        for (let x = midX; x < w; x++){
+          const s = colSum(x);
+          if (s < bestRightSum){ bestRightSum = s; bestRightX = x; }
+        }
 
-        return { leftX, rightX, topY, bottomY, w, h };
+        // Верхня половина: мінімальний рядок
+        let bestTopY = 0, bestTopSum = Infinity;
+        for (let y = 0; y < Math.max(1, midY); y++){
+          const s = rowSum(y);
+          if (s < bestTopSum){ bestTopSum = s; bestTopY = y; }
+        }
+
+        // Нижня половина: мінімальний рядок
+        let bestBottomY = midY, bestBottomSum = Infinity;
+        for (let y = midY; y < h; y++){
+          const s = rowSum(y);
+          if (s < bestBottomSum){ bestBottomSum = s; bestBottomY = y; }
+        }
+
+        // Гарантуємо порядок (ліва < права, верх < низ)
+        if (bestLeftX >= bestRightX) bestRightX = clamp(bestLeftX + 1, 0, w - 1);
+        if (bestTopY >= bestBottomY) bestBottomY = clamp(bestTopY + 1, 0, h - 1);
+
+        return { leftX: bestLeftX, rightX: bestRightX, topY: bestTopY, bottomY: bestBottomY, w, h };
       }
 
-      async function computeAndShowBlueLines(alsoRect){
+      async function computeAndShowBlueLines(){
         if (!image2.src || image2.style.display === 'none'){
-          hideBlueOverlay();
+          alert('Спочатку створіть image2 у Зоні 2.');
           return;
         }
         await ensureImageReady(image2);
 
         const w = lastW || image2.naturalWidth;
         const h = lastH || image2.naturalHeight;
-        if (!w || !h){
-          hideBlueOverlay();
-          return;
-        }
+        if (!w || !h) return;
 
-        const blue = computeBlueByMaxPair(w, h);
-        lastBlue = blue;
+        lastBlue = computeMinLinesSimple(w, h);
 
-        setBlueLinesAndMaybeRect(blue, alsoRect);
+        // Показуємо лінії, а прямокутник — тільки якщо чек увімкнений
+        renderBlueOverlay(lastBlue, showCropChk.checked);
 
-        image2Info.textContent =
-          `${w}×${h} (L=${blue.leftX}, R=${blue.rightX}, T=${blue.topY}, B=${blue.bottomY})`;
+        image2Info.textContent = `${w}×${h} (L=${lastBlue.leftX}, R=${lastBlue.rightX}, T=${lastBlue.topY}, B=${lastBlue.bottomY})`;
       }
 
-      blueLinesBtn.addEventListener('click', async () => {
-        if (!image2.src || image2.style.display === 'none') {
-          alert('Спочатку створіть image2 у Зоні 2.');
-          return;
-        }
-        await computeAndShowBlueLines(showCropChk.checked);
-      });
+      blueLinesBtn.addEventListener('click', () => computeAndShowBlueLines().catch(()=>{}));
 
+      // =========================
+      // “Показати обріз”
+      // 1) показує прямокутник
+      // 2) вмикає режим перетягування ліній
+      // =========================
       showCropChk.addEventListener('change', async () => {
         if (!showCropChk.checked){
-          if (lastBlue){
-            setBlueLinesAndMaybeRect(lastBlue, false);
-          }
+          // Вимкнули: прямокутник ховаємо + перетягування вимикаємо
+          blueSvg.classList.remove('editable');
+          if (lastBlue) renderBlueOverlay(lastBlue, false);
           return;
         }
+
+        // Увімкнули:
+        // - якщо ліній ще нема -> порахувати
         if (!lastBlue){
-          await computeAndShowBlueLines(true);
+          await computeAndShowBlueLines();
         } else {
-          setBlueLinesAndMaybeRect(lastBlue, true);
+          renderBlueOverlay(lastBlue, true);
         }
+
+        // Дозволяємо тягнути хендли/лінії
+        blueSvg.classList.add('editable');
       });
 
-      window.addEventListener('resize', () => {
-        if (lastBlue){
-          setBlueLinesAndMaybeRect(lastBlue, showCropChk.checked);
-        }
-      });
+      // =========================
+      // Перемикач режиму обрізу image1 (кольор/ч-б)
+      // =========================
+      function setCropMode(mode){
+        cropMode = mode;
+        cropModeColorBtn.classList.toggle('active', mode === 'color');
+        cropModeBWBtn.classList.toggle('active', mode === 'bw');
+      }
+      cropModeColorBtn.addEventListener('click', () => setCropMode('color'));
+      cropModeBWBtn.addEventListener('click', () => setCropMode('bw'));
 
-      // =========================================================
-      // 11) Обрізати:
-      //     - НЕ ріжемо image2
-      //     - Ріжемо image1, використовуючи прямокутник між синіми лініями image2
-      //     - Координати ліній можуть бути .5, тому:
-      //         x0/x1/y0/y1 беремо як "неперервні" межі у просторі image2
-      //       і мапимо їх у простір image1:
-      //         sx1 = floor(x0 * scaleX)
-      //         ex1 = ceil (x1 * scaleX)
-      //       (тобто беремо весь вміст між межами)
-      // =========================================================
+      // =========================
+      // Перетягування ліній на SVG
+      // Логіка:
+      // - Коли "Показати обріз" увімкнено, blueSvg стає editable.
+      // - Користувач тягне кружечок (handle) -> ми міняємо відповідний X або Y в lastBlue
+      // - Після зміни перемальовуємо лінії/прямокутник
+      // =========================
+
+      /**
+       * Перетворюємо координати події (clientX/clientY) у натуральні координати SVG (viewBox).
+       * Це потрібно, бо SVG розтягується під розмір відображення, а нам потрібні "натуральні" px.
+       */
+      function clientToSvgPoint(svg, clientX, clientY){
+        const pt = svg.createSVGPoint();
+        pt.x = clientX;
+        pt.y = clientY;
+        const ctm = svg.getScreenCTM();
+        if (!ctm) return {x:0,y:0};
+        const inv = ctm.inverse();
+        const p = pt.matrixTransform(inv);
+        return { x: p.x, y: p.y };
+      }
+
+      /**
+       * Оновлюємо lastBlue з урахуванням меж та порядку ліній.
+       */
+      function setBlueValue(type, value){
+        if (!lastBlue) return;
+        const w = lastBlue.w, h = lastBlue.h;
+
+        // Мін. відстань між лівою і правою лінією / верхньою і нижньою
+        const minGap = 1;
+
+        if (type === 'L'){
+          const v = clamp(Math.round(value), 0, w - 1 - minGap);
+          lastBlue.leftX = Math.min(v, lastBlue.rightX - minGap);
+        }
+        if (type === 'R'){
+          const v = clamp(Math.round(value), minGap, w - 1);
+          lastBlue.rightX = Math.max(v, lastBlue.leftX + minGap);
+        }
+        if (type === 'T'){
+          const v = clamp(Math.round(value), 0, h - 1 - minGap);
+          lastBlue.topY = Math.min(v, lastBlue.bottomY - minGap);
+        }
+        if (type === 'B'){
+          const v = clamp(Math.round(value), minGap, h - 1);
+          lastBlue.bottomY = Math.max(v, lastBlue.topY + minGap);
+        }
+
+        // Перемальовуємо, прямокутник має бути видимим (бо showCropChk увімкнений)
+        renderBlueOverlay(lastBlue, showCropChk.checked);
+
+        // Оновимо інфо
+        image2Info.textContent = `${w}×${h} (L=${lastBlue.leftX}, R=${lastBlue.rightX}, T=${lastBlue.topY}, B=${lastBlue.bottomY})`;
+      }
+
+      function startDrag(type, e){
+        if (!showCropChk.checked) return;  // тягнемо лише коли чек увімкнений
+        if (!lastBlue) return;
+
+        drag = { type, pointerId: e.pointerId };
+        // Захоплюємо pointer, щоб драг не "впав" при виході за межі елемента
+        e.target.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      }
+
+      function onDragMove(e){
+        if (!drag || !lastBlue) return;
+        const p = clientToSvgPoint(blueSvg, e.clientX, e.clientY);
+
+        if (drag.type === 'L' || drag.type === 'R'){
+          setBlueValue(drag.type, p.x);
+        } else {
+          setBlueValue(drag.type, p.y);
+        }
+        e.preventDefault();
+      }
+
+      function endDrag(e){
+        if (!drag) return;
+        try { e.target.releasePointerCapture(drag.pointerId); } catch(_) {}
+        drag = null;
+        e.preventDefault();
+      }
+
+      // Драг по ХЕНДЛАХ
+      hLeft.addEventListener('pointerdown', (e)=>startDrag('L', e));
+      hRight.addEventListener('pointerdown', (e)=>startDrag('R', e));
+      hTop.addEventListener('pointerdown', (e)=>startDrag('T', e));
+      hBottom.addEventListener('pointerdown', (e)=>startDrag('B', e));
+
+      // Драг по ЛІНІЯХ (зручно — можна тягнути за лінію)
+      blueLeft.addEventListener('pointerdown', (e)=>startDrag('L', e));
+      blueRight.addEventListener('pointerdown', (e)=>startDrag('R', e));
+      blueTop.addEventListener('pointerdown', (e)=>startDrag('T', e));
+      blueBottom.addEventListener('pointerdown', (e)=>startDrag('B', e));
+
+      // Рух/відпускання слухаємо на SVG (щоб працювало стабільно)
+      blueSvg.addEventListener('pointermove', onDragMove);
+      blueSvg.addEventListener('pointerup', endDrag);
+      blueSvg.addEventListener('pointercancel', endDrag);
+
+      // =========================
+      // Обрізати:
+      // Ви просили: кнопка “Обрізати” НЕ обрізає image2,
+      // а бере прямокутник на image2, переводить його у координати image1,
+      // обрізає image1 (кольорово або ч/б) і вставляє результат у Зону 2.
+      // =========================
       cropBtn.addEventListener('click', async () => {
         if (!image1Loaded || !image1.src){
-          alert('Спочатку завантаж image1 у Зону 1.');
+          alert('Спочатку завантаж image1.');
           return;
         }
         if (!image2.src || image2.style.display === 'none'){
-          alert('Спочатку створіть image2 у Зоні 2.');
+          alert('Спочатку створіть image2.');
           return;
-        }
-
-        await ensureImageReady(image1);
-        await ensureImageReady(image2);
-
-        const w2 = lastW || image2.naturalWidth;
-        const h2 = lastH || image2.naturalHeight;
-        if (!w2 || !h2){
-          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
-          return;
-        }
-
-        if (!lastBlue || lastBlue.w !== w2 || lastBlue.h !== h2){
-          await computeAndShowBlueLines(true);
         }
         if (!lastBlue){
-          alert('Не вдалося отримати сині лінії.');
+          alert('Спочатку порахуйте лінії кнопкою “Порахувати лінії”.');
           return;
         }
 
-        // Межі прямокутника у просторі image2 (можуть бути дробові)
-        let x0 = Math.min(lastBlue.leftX, lastBlue.rightX);
-        let x1 = Math.max(lastBlue.leftX, lastBlue.rightX);
-        let y0 = Math.min(lastBlue.topY, lastBlue.bottomY);
-        let y1 = Math.max(lastBlue.topY, lastBlue.bottomY);
+        // Натуральні розміри image2
+        const w2 = lastBlue.w;
+        const h2 = lastBlue.h;
 
-        // Кліп у [0..w2] та [0..h2] (саме до меж, не до w2-1)
-        x0 = clamp(x0, 0, w2);
-        x1 = clamp(x1, 0, w2);
-        y0 = clamp(y0, 0, h2);
-        y1 = clamp(y1, 0, h2);
-
-        // Якщо раптом лінії співпали — робимо мінімальний прямокутник 1px у просторі image2
-        if (Math.abs(x1 - x0) < 1e-6) x1 = clamp(x0 + 1, 0, w2);
-        if (Math.abs(y1 - y0) < 1e-6) y1 = clamp(y0 + 1, 0, h2);
-
-        // Мапимо у простір image1
+        // Перетворюємо прямокутник з координат image2 -> координати image1
+        // scaleX = baseW / w2, scaleY = baseH / h2
         const scaleX = baseW / w2;
         const scaleY = baseH / h2;
 
-        let sx1 = Math.floor(x0 * scaleX);
-        let sy1 = Math.floor(y0 * scaleY);
-        let ex1 = Math.ceil (x1 * scaleX);
-        let ey1 = Math.ceil (y1 * scaleY);
+        const x1 = Math.min(lastBlue.leftX, lastBlue.rightX);
+        const x2 = Math.max(lastBlue.leftX, lastBlue.rightX);
+        const y1 = Math.min(lastBlue.topY, lastBlue.bottomY);
+        const y2 = Math.max(lastBlue.topY, lastBlue.bottomY);
 
-        sx1 = clamp(sx1, 0, baseW - 1);
-        sy1 = clamp(sy1, 0, baseH - 1);
-        ex1 = clamp(ex1, sx1 + 1, baseW); // ex1 — права межа (exclusive)
-        ey1 = clamp(ey1, sy1 + 1, baseH); // ey1 — нижня межа (exclusive)
+        // Прямокутник в image2 (у пікселях)
+        const rectW2 = Math.max(1, x2 - x1 + 1);
+        const rectH2 = Math.max(1, y2 - y1 + 1);
 
-        const sw1 = Math.max(1, ex1 - sx1);
-        const sh1 = Math.max(1, ey1 - sy1);
+        // Прямокутник в image1 (у пікселях)
+        const srcX = clamp(Math.round(x1 * scaleX), 0, baseW - 1);
+        const srcY = clamp(Math.round(y1 * scaleY), 0, baseH - 1);
+        const srcW = clamp(Math.round(rectW2 * scaleX), 1, baseW - srcX);
+        const srcH = clamp(Math.round(rectH2 * scaleY), 1, baseH - srcY);
 
-        const canvas = document.createElement('canvas');
-        canvas.width = sw1;
-        canvas.height = sh1;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        // Створюємо новий canvas під результат (розмір — як у image2 прямокутника)
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = rectW2;
+        outCanvas.height = rectH2;
+        const octx = outCanvas.getContext('2d', { willReadFrequently: true });
 
-        ctx.drawImage(image1, sx1, sy1, sw1, sh1, 0, 0, sw1, sh1);
+        // Малюємо обрізаний фрагмент image1 у новий canvas, масштабуючи до rectW2×rectH2
+        octx.drawImage(image1, srcX, srcY, srcW, srcH, 0, 0, rectW2, rectH2);
 
-        if (cropModeBW && cropModeBW.checked){
-          const imgData = ctx.getImageData(0, 0, sw1, sh1);
+        // Якщо режим "ч/б" — перетворюємо вже в цьому canvas
+        if (cropMode === 'bw'){
+          const imgData = octx.getImageData(0, 0, rectW2, rectH2);
           const d = imgData.data;
-          for (let i = 0; i < d.length; i += 4){
+          for (let i = 0; i < d.length; i += 4) {
             const r = d[i], g = d[i+1], b = d[i+2];
             const gray = Math.round(0.299*r + 0.587*g + 0.114*b);
             d[i] = d[i+1] = d[i+2] = gray;
           }
-          ctx.putImageData(imgData, 0, 0);
-          exportMode = 'gray255';
-          image2Color.textContent = 'Обріз image1 (ч/б)';
-        } else {
-          exportMode = 'gray255';
-          image2Color.textContent = 'Обріз image1 (кольор)';
+          octx.putImageData(imgData, 0, 0);
         }
 
-        lastW = sw1;
-        lastH = sh1;
+        // Вставляємо у Зону 2
+        const dataURL = outCanvas.toDataURL('image/png');
+        image2.onload = () => {
+          zone2Placeholder.style.display = 'none';
+          image2Wrap.style.display = 'block';
+          image2.style.display = 'block';
 
-        syncing = true;
-        setWH(lastW, lastH);
-        calcScaleFromWH();
-        syncing = false;
+          // Оновлюємо "натуральні" розміри image2 на нові
+          lastW = rectW2;
+          lastH = rectH2;
 
-        image2Width.textContent = lastW;
-        image2Height.textContent = lastH;
+          image2Width.textContent = lastW;
+          image2Height.textContent = lastH;
+          image2Color.textContent = (cropMode === 'bw') ? 'Обріз (ч/б)' : 'Обріз (колір)';
 
-        showCropChk.checked = false;
-        hideBlueOverlay();
+          // Після обрізу: лінії старі — неактуальні (бо інше зображення)
+          showCropChk.checked = false;
+          hideBlueOverlay();
 
-        await setImage2FromCanvas(canvas, `${lastW}×${lastH} (обріз з image1)`);
+          image2Info.textContent = `${lastW}×${lastH} (обріз з image1)`;
+        };
+        image2.src = dataURL;
       });
 
-      // =========================================================
-      // 12) SAVE PNG + TXT
-      // =========================================================
+      // =========================
+      // Збереження image2
+      // =========================
       function pad2(n){ return String(n).padStart(2, '0'); }
       function getDateStamp(){
         const d = new Date();
@@ -1108,17 +1115,14 @@
 
       saveImage2Btn.addEventListener('click', async function() {
         if (!image2.src || image2.style.display === 'none') {
-          alert('Спочатку створіть/отримайте image2.');
+          alert('Спочатку створіть image2.');
           return;
         }
         await ensureImageReady(image2);
 
         const w = lastW || image2.naturalWidth;
         const h = lastH || image2.naturalHeight;
-        if (!w || !h) {
-          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
-          return;
-        }
+        if (!w || !h) return;
 
         const link = document.createElement('a');
         link.href = image2.src;
@@ -1126,24 +1130,24 @@
         link.click();
       });
 
+      // =========================
+      // TXT: матриця через "."
+      // (беремо просто канал R, бо у нас або ч/б, або кольор — але R теж є)
+      // =========================
       savePixelValuesBtn.addEventListener('click', async function() {
         if (!image2.src || image2.style.display === 'none') {
-          alert('Спочатку створіть/отримайте image2.');
+          alert('Спочатку створіть image2.');
           return;
         }
         await ensureImageReady(image2);
 
         const w = lastW || image2.naturalWidth;
         const h = lastH || image2.naturalHeight;
-        if (!w || !h) {
-          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
-          return;
-        }
+        if (!w || !h) return;
 
         const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        canvas.width = w;
-        canvas.height = h;
         ctx.drawImage(image2, 0, 0, w, h);
 
         const data = ctx.getImageData(0, 0, w, h).data;
@@ -1153,20 +1157,29 @@
         for (let y = 0; y < h; y++) {
           const row = new Array(w);
           for (let x = 0; x < w; x++) {
-            const r = data[idx];
-            const v = (exportMode === 'contour01') ? ((r >= 128) ? 1 : 0) : r;
-            row[x] = String(v);
+            const r = data[idx];     // беремо R
+            row[x] = String(r);
             idx += 4;
           }
           lines.push(row.join('.'));
         }
 
+        const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
         const link = document.createElement('a');
-        link.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' }));
+        link.href = URL.createObjectURL(blob);
         link.download = `${getBaseFilename(w, h)}.txt`;
         link.click();
-
         setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      });
+
+      // =========================
+      // Ресайз: просто перемалювати оверлей (координати натуральні, viewBox тримає геометрію)
+      // =========================
+      window.addEventListener('resize', () => {
+        if (lastBlue){
+          renderBlueOverlay(lastBlue, showCropChk.checked);
+          if (showCropChk.checked) blueSvg.classList.add('editable');
+        }
       });
 
     });
