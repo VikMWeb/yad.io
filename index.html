@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ТН 08</title>
+  <title>ТН 10</title>
   <style>
     *{ box-sizing:border-box; }
     body{
@@ -203,8 +203,8 @@
 <body>
   <div class="app">
     <header>
-      <h1>ТН 08</h1>
-      <div style="font-size:12px;color:#666;">Зона 1: завантаження • Зона 2: ч/б з image1</div>
+      <h1>ТН 10</h1>
+      <div style="font-size:12px;color:#666;">Зона 1: завантаження • Зона 2: ч/б з image1 • Контур з image2</div>
     </header>
 
     <div class="content">
@@ -260,8 +260,11 @@
             Зберігати пропорції
           </label>
 
-          <div class="hint">Зберігаємо TXT: тільки Gray, рядок через "."</div>
+          <div class="hint">TXT: у звичайному режимі — Gray 0..255; у “Контур 0/1” — значення 0 або 1</div>
         </div>
+
+        <button class="btn ghost" id="contourBtn">Контур (0/255) з image2</button>
+        <button class="btn ghost" id="contour01Btn">Контур 0/1 (з image2)</button>
 
         <div class="row">
           <button class="btn secondary" id="createImage2Btn">Створити image2</button>
@@ -277,7 +280,7 @@
             <div>Висота: <b id="image2-height">—</b></div>
             <div>Тип: <b id="image2-color">—</b></div>
           </div>
-          <div class="small">TXT: тільки матриця (рядки y), значення Gray через "."</div>
+          <div class="small">TXT: тільки матриця (рядки y), значення через "."</div>
         </div>
       </aside>
     </div>
@@ -294,6 +297,8 @@
       const createImage2Btn = document.getElementById('createImage2Btn');
       const saveImage2Btn = document.getElementById('saveImage2Btn');
       const savePixelValuesBtn = document.getElementById('savePixelValuesBtn');
+      const contourBtn = document.getElementById('contourBtn');
+      const contour01Btn = document.getElementById('contour01Btn');
 
       const image2Width = document.getElementById('image2-width');
       const image2Height = document.getElementById('image2-height');
@@ -315,9 +320,12 @@
       let ratio = 1;
       let syncing = false;
 
-      // ВАЖЛИВО: реальна роздільність створеного image2 (для TXT)
+      // реальна роздільність створеного image2 (для TXT і PNG)
       let lastW = 0;
       let lastH = 0;
+
+      // режим збереження TXT: 'gray255' або 'contour01'
+      let exportMode = 'gray255';
 
       function toInt(v){
         const n = parseInt(String(v).trim(), 10);
@@ -366,12 +374,32 @@
         calcScaleFromWH();
       }
 
+      // ======= ОЧИСТКА ЗОНИ 2 =======
+      function clearZone2(){
+        image2.removeAttribute('src');
+        image2.style.display = 'none';
+        zone2Placeholder.style.display = 'block';
+        image2Info.textContent = 'не створено';
+
+        image2Width.textContent = '—';
+        image2Height.textContent = '—';
+        image2Color.textContent = '—';
+
+        lastW = 0;
+        lastH = 0;
+
+        exportMode = 'gray255';
+      }
+
       // ======= ЗАВАНТАЖЕННЯ image1 =======
       loadImage1Btn.addEventListener('click', () => image1File.click());
 
       image1File.addEventListener('change', function() {
         const file = this.files && this.files[0];
         if (!file) return;
+
+        // 1) при завантаженні image1 — очищаємо зону 2
+        clearZone2();
 
         const url = URL.createObjectURL(file);
 
@@ -447,7 +475,6 @@
         const width = clamp(toInt(outW.value) ?? 0, 1);
         const height = clamp(toInt(outH.value) ?? 0, 1);
 
-        // запам'ятали точну роздільність image2 (для TXT!)
         lastW = width;
         lastH = height;
 
@@ -480,21 +507,166 @@
         image2Width.textContent = width;
         image2Height.textContent = height;
         image2Color.textContent = 'Чорно-біле';
+        exportMode = 'gray255';
       });
 
-      // ======= ЗБЕРЕЖЕННЯ image2 =======
-      saveImage2Btn.addEventListener('click', function() {
+      // ======= КОНТУР (з image2) =======
+      function getAdaptiveThreshold(edgeMag){
+        // проста адаптація: mean + 0.5*std
+        const n = edgeMag.length;
+        if (!n) return 80;
+        let sum = 0;
+        for (let i = 0; i < n; i++) sum += edgeMag[i];
+        const mean = sum / n;
+
+        let v = 0;
+        for (let i = 0; i < n; i++){
+          const d = edgeMag[i] - mean;
+          v += d * d;
+        }
+        const std = Math.sqrt(v / n);
+        const t = mean + 0.5 * std;
+        return Math.max(10, Math.min(255, t));
+      }
+
+      function makeContoursCanvasFromImage(img, w, h, mode01){
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        ctx.drawImage(img, 0, 0, w, h);
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const d = imgData.data;
+
+        // grayscale buffer
+        const gray = new Uint8ClampedArray(w * h);
+        for (let i = 0, p = 0; i < d.length; i += 4, p++){
+          gray[p] = d[i]; // r
+        }
+
+        // Sobel
+        const mag = new Float32Array(w * h);
+        const gxK = [-1,0,1,-2,0,2,-1,0,1];
+        const gyK = [-1,-2,-1,0,0,0,1,2,1];
+
+        for (let y = 1; y < h - 1; y++){
+          for (let x = 1; x < w - 1; x++){
+            let gx = 0, gy = 0;
+            let k = 0;
+            for (let ky = -1; ky <= 1; ky++){
+              for (let kx = -1; kx <= 1; kx++){
+                const v = gray[(y + ky) * w + (x + kx)];
+                gx += v * gxK[k];
+                gy += v * gyK[k];
+                k++;
+              }
+            }
+            const m = Math.min(255, Math.hypot(gx, gy));
+            mag[y * w + x] = m;
+          }
+        }
+
+        const t = getAdaptiveThreshold(mag);
+
+        // output
+        const out = ctx.createImageData(w, h);
+        const od = out.data;
+
+        for (let p = 0; p < w*h; p++){
+          const isEdge = mag[p] >= t ? 1 : 0;
+
+          // для відображення: 0->0, 1->255
+          const disp = isEdge ? 0 : 255;
+
+          const i = p * 4;
+          od[i] = od[i+1] = od[i+2] = disp;
+          od[i+3] = 255;
+        }
+
+        ctx.putImageData(out, 0, 0);
+
+        // важливо: режим збереження TXT
+        exportMode = mode01 ? 'contour01' : 'gray255';
+
+        return canvas;
+      }
+
+      async function ensureImageReady(img){
+        if (img.decode) {
+          try { await img.decode(); } catch(e) {}
+        }
+      }
+
+      // Контур 0/255 (як було)
+      contourBtn.addEventListener('click', async function(){
         if (!image2.src || image2.style.display === 'none') {
-          alert('Спочатку створіть image2.');
+          alert('Спочатку створіть image2 у Зоні 2.');
           return;
         }
-        const link = document.createElement('a');
-        link.href = image2.src;
-        link.download = 'image2.png';
-        link.click();
+
+        await ensureImageReady(image2);
+
+        const w = lastW || image2.naturalWidth;
+        const h = lastH || image2.naturalHeight;
+
+        if (!w || !h){
+          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
+          return;
+        }
+
+        const canvas = makeContoursCanvasFromImage(image2, w, h, false);
+        const dataURL = canvas.toDataURL('image/png');
+
+        image2.onload = () => {
+          zone2Placeholder.style.display = 'none';
+          image2.style.display = 'block';
+          image2Info.textContent = `${w}×${h} (контур)`;
+        };
+        image2.src = dataURL;
+
+        lastW = w; lastH = h;
+
+        image2Width.textContent = w;
+        image2Height.textContent = h;
+        image2Color.textContent = 'Контури (0/255)';
       });
 
-      // ======= TXT: тільки матриця (Gray через ".") =======
+      // Контур 0/1 (НОВЕ)
+      contour01Btn.addEventListener('click', async function(){
+        if (!image2.src || image2.style.display === 'none') {
+          alert('Спочатку створіть image2 у Зоні 2.');
+          return;
+        }
+
+        await ensureImageReady(image2);
+
+        const w = lastW || image2.naturalWidth;
+        const h = lastH || image2.naturalHeight;
+
+        if (!w || !h){
+          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
+          return;
+        }
+
+        const canvas = makeContoursCanvasFromImage(image2, w, h, true);
+        const dataURL = canvas.toDataURL('image/png');
+
+        image2.onload = () => {
+          zone2Placeholder.style.display = 'none';
+          image2.style.display = 'block';
+          image2Info.textContent = `${w}×${h} (контур 0/1)`;
+        };
+        image2.src = dataURL;
+
+        lastW = w; lastH = h;
+
+        image2Width.textContent = w;
+        image2Height.textContent = h;
+        image2Color.textContent = 'Контури (0/1 для TXT)';
+      });
+
+      // ======= ІМ’Я ФАЙЛІВ (однаково для PNG і TXT) =======
       function pad2(n){ return String(n).padStart(2, '0'); }
       function getDateStamp(){
         const d = new Date();
@@ -506,14 +678,37 @@
         const ss = pad2(d.getSeconds());
         return `${y}${m}${day}_${hh}${mm}${ss}`;
       }
-
-      async function ensureImageReady(img){
-        // decode() дає гарантію що naturalWidth/naturalHeight доступні
-        if (img.decode) {
-          try { await img.decode(); } catch(e) {}
-        }
+      function getBaseFilename(w, h){
+        const stamp = getDateStamp();
+        return `ImgPix_${stamp}_${w}x${h}`;
       }
 
+      // ======= ЗБЕРЕЖЕННЯ image2 (назва як TXT) =======
+      saveImage2Btn.addEventListener('click', async function() {
+        if (!image2.src || image2.style.display === 'none') {
+          alert('Спочатку створіть image2.');
+          return;
+        }
+
+        await ensureImageReady(image2);
+
+        const w = lastW || image2.naturalWidth;
+        const h = lastH || image2.naturalHeight;
+
+        if (!w || !h) {
+          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
+          return;
+        }
+
+        const filename = `${getBaseFilename(w, h)}.png`;
+
+        const link = document.createElement('a');
+        link.href = image2.src;
+        link.download = filename;
+        link.click();
+      });
+
+      // ======= TXT: матриця через "." =======
       savePixelValuesBtn.addEventListener('click', async function() {
         if (!image2.src || image2.style.display === 'none') {
           alert('Спочатку створіть image2.');
@@ -522,7 +717,6 @@
 
         await ensureImageReady(image2);
 
-        // Беремо РЕАЛЬНУ роздільність створеного image2 (а не CSS-ширину)
         const w = lastW || image2.naturalWidth;
         const h = lastH || image2.naturalHeight;
 
@@ -546,16 +740,25 @@
         for (let y = 0; y < h; y++) {
           const row = new Array(w);
           for (let x = 0; x < w; x++) {
-            // image2 вже ч/б, тому Gray = R
-            row[x] = String(data[idx]);
+            const r = data[idx]; // Gray = R (у контурі теж 0 або 255)
+            let v;
+
+            if (exportMode === 'contour01') {
+              // 0/1
+              v = (r >= 128) ? 1 : 0;
+            } else {
+              // Gray 0..255
+              v = r;
+            }
+
+            row[x] = String(v);
             idx += 4;
           }
-          // Рівно w значень у рядку:
           lines.push(row.join('.'));
         }
 
-        const stamp = getDateStamp();
-        const filename = `ImgPix_${stamp}_${w}x${h}.txt`;
+        const base = getBaseFilename(w, h);
+        const filename = `${base}.txt`;
 
         const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
         const link = document.createElement('a');
@@ -569,4 +772,4 @@
     });
   </script>
 </body>
-    </html>
+</html>
