@@ -83,25 +83,40 @@
       background:#fff;
       border:1px solid #e6e6e6;
       display:block;
+
+      /* щоб довгий тап по фото не викликав системні дії */
+      -webkit-user-select:none;
+      user-select:none;
+      -webkit-touch-callout:none;
+      -webkit-user-drag:none;
+      user-drag:none;
     }
 
-    /* =========================================================
-       СИНІ ЛІНІЇ + ПРЯМОКУТНИК
-
-       ВАЖЛИВО:
-       - за замовчуванням SVG не приймає кліки (pointer-events: none)
-       - коли користувач вмикає "Показати обріз" => ми переводимо SVG в режим редагування:
-           .blue-svg.edit { pointer-events:auto; }
-       ========================================================= */
+    /* ====== SVG-оверлей ліній/прямокутника ====== */
     .blue-svg{
       position:absolute;
       inset:0;
       width:100%;
       height:100%;
       display:none;
+
+      /* За замовчуванням не ловимо події, щоб не заважати скролу */
       pointer-events:none;
+
+      /* анти-меню / анти-виділення */
+      -webkit-user-select:none;
+      user-select:none;
+      -webkit-touch-callout:none;
     }
-    .blue-svg.edit{ pointer-events:auto; }
+
+    /* Коли увімкнули "Показати обріз" — даємо можливість редагувати */
+    .blue-svg.edit{
+      pointer-events:auto;
+
+      /* ГОЛОВНЕ для телефону: не даємо браузеру прокручувати сторінку/зумити жестом,
+         бо інакше перетягування ліній не працює. */
+      touch-action:none;
+    }
 
     .blue-line{
       fill: transparent;
@@ -109,30 +124,38 @@
       stroke-width: 2;
       stroke-dasharray: 7 6;
       vector-effect: non-scaling-stroke;
-      pointer-events: none; /* щоб хіт-зону робили окремі "handle"-лінії */
     }
 
-    /* Прямокутник перетину */
+    /* Прямокутник обрізу — ЖОВТИЙ (за твоїм бажанням) */
     .blue-rect{
-  fill: rgba(255, 215, 0, .18); /* жовта прозора заливка */
-  stroke: #FFD700;             /* жовта обводка */
+      fill: rgba(255, 215, 0, .18);
+      stroke: #ffcc00;
       stroke-width: 2;
       stroke-dasharray: 7 6;
       vector-effect: non-scaling-stroke;
       display:none;
-      pointer-events:none;
     }
 
-    /* "Невидимі" ручки для перетягування (широкий stroke, прозорий) */
-    .drag-handle{
-      stroke: rgba(0,0,0,0);
-      stroke-width: 16;          /* широка зона захоплення */
+    /* Невидимі "хіт-зони" для зручного тапа пальцем (товсті, але прозорі) */
+    .hit{
+      stroke: transparent;
+      stroke-width: 18;
       vector-effect: non-scaling-stroke;
-      pointer-events: stroke;     /* ловимо саме по "обводці" */
-      cursor: default;
+      cursor: grab;
+      touch-action:none;
     }
-    .drag-handle.v{ cursor: ew-resize; }  /* вертикальна лінія */
-    .drag-handle.h{ cursor: ns-resize; }  /* горизонтальна лінія */
+    .hit:active{ cursor: grabbing; }
+
+    /* Маленькі "ручки" (кружечки) */
+    .handle{
+      fill:#fff;
+      stroke:#1677ff;
+      stroke-width:2;
+      vector-effect: non-scaling-stroke;
+      cursor: grab;
+      touch-action:none;
+    }
+    .handle:active{ cursor: grabbing; }
 
     .placeholder{
       color:#888;
@@ -293,7 +316,7 @@
     <header>
       <h1>ТН 17</h1>
       <div style="font-size:12px;color:#666;">
-        Сині лінії: шукаємо "смугу" з 2 підряд колонок/рядків з МАКС сумою • “Показати обріз” = прямокутник + РЕЖИМ ПЕРЕТЯГУВАННЯ • “Обрізати” = ріже image1 і вставляє у Зону 2
+        Сині лінії: шукаємо "смугу" з 2 підряд колонок/рядків з МАКС сумою • “Показати обріз” = прямокутник (жовтий) • Можна тягати лінії пальцем • “Обрізати” = ріже image1 і вставляє у Зону 2
       </div>
     </header>
 
@@ -325,22 +348,28 @@
             <div class="img-wrap" id="image2Wrap" style="display:none;">
               <img id="image2" alt="image2" style="display:none;">
 
-              <!-- SVG оверлей: 4 лінії + прямокутник + "ручки" (перетягування) -->
+              <!-- SVG: лінії + прямокутник + ручки -->
               <svg class="blue-svg" id="blueSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <!-- Видимі лінії -->
+                <!-- Візуальні лінії -->
                 <line class="blue-line" id="blueLeft"   x1="0" y1="0" x2="0" y2="0"></line>
                 <line class="blue-line" id="blueRight"  x1="0" y1="0" x2="0" y2="0"></line>
                 <line class="blue-line" id="blueTop"    x1="0" y1="0" x2="0" y2="0"></line>
                 <line class="blue-line" id="blueBottom" x1="0" y1="0" x2="0" y2="0"></line>
 
-                <!-- Невидимі "ручки" (широкі, щоб зручно хапати мишкою/пальцем) -->
-                <line class="drag-handle v" id="dragLeft"   x1="0" y1="0" x2="0" y2="0"></line>
-                <line class="drag-handle v" id="dragRight"  x1="0" y1="0" x2="0" y2="0"></line>
-                <line class="drag-handle h" id="dragTop"    x1="0" y1="0" x2="0" y2="0"></line>
-                <line class="drag-handle h" id="dragBottom" x1="0" y1="0" x2="0" y2="0"></line>
-
-                <!-- Прямокутник перетину -->
+                <!-- Жовтий прямокутник -->
                 <rect class="blue-rect" id="blueRect" x="0" y="0" width="0" height="0"></rect>
+
+                <!-- ХІТ-ЗОНИ (прозорі, товсті) для тапа -->
+                <line class="hit" id="hitLeft"   x1="0" y1="0" x2="0" y2="0"></line>
+                <line class="hit" id="hitRight"  x1="0" y1="0" x2="0" y2="0"></line>
+                <line class="hit" id="hitTop"    x1="0" y1="0" x2="0" y2="0"></line>
+                <line class="hit" id="hitBottom" x1="0" y1="0" x2="0" y2="0"></line>
+
+                <!-- РУЧКИ (кружечки) -->
+                <circle class="handle" id="hLeft"   cx="0" cy="0" r="7"></circle>
+                <circle class="handle" id="hRight"  cx="0" cy="0" r="7"></circle>
+                <circle class="handle" id="hTop"    cx="0" cy="0" r="7"></circle>
+                <circle class="handle" id="hBottom" cx="0" cy="0" r="7"></circle>
               </svg>
             </div>
           </div>
@@ -371,7 +400,7 @@
             Зберігати пропорції
           </label>
 
-          <div class="hint">Сині лінії рахуються по поточному image2 (ч/б або контур). У режимі “Показати обріз” лінії можна тягати.</div>
+          <div class="hint">Сині лінії рахуються по поточному image2 (ч/б або контур). Після “Показати обріз” — лінії можна рухати.</div>
         </div>
 
         <button class="btn secondary" id="createImage2Btn" style="margin-top:6px;">Створити image2 (ч/б)</button>
@@ -392,11 +421,11 @@
               у ч-б
             </label>
           </div>
-          <div class="hint">“Обрізати” ріже саме image1, використовуючи прямокутник (координати з image2).</div>
+          <div class="hint">“Обрізати” ріже саме image1, використовуючи прямокутник між лініями (координати з image2).</div>
         </div>
 
         <div class="row">
-          <label class="toggle-pill" title="Показати прямокутник і ввімкнути режим перетягування ліній">
+          <label class="toggle-pill" title="Показати прямокутник і ввімкнути редагування ліній">
             <input type="checkbox" id="showCropChk">
             Показати обріз
           </label>
@@ -423,6 +452,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+
       // =========================================================
       // 1) DOM
       // =========================================================
@@ -431,17 +461,22 @@
       const image2Wrap = document.getElementById('image2Wrap');
 
       const blueSvg = document.getElementById('blueSvg');
+
       const blueLeft = document.getElementById('blueLeft');
       const blueRight = document.getElementById('blueRight');
       const blueTop = document.getElementById('blueTop');
       const blueBottom = document.getElementById('blueBottom');
       const blueRect = document.getElementById('blueRect');
 
-      // Невидимі "ручки" для перетягування
-      const dragLeft = document.getElementById('dragLeft');
-      const dragRight = document.getElementById('dragRight');
-      const dragTop = document.getElementById('dragTop');
-      const dragBottom = document.getElementById('dragBottom');
+      const hitLeft = document.getElementById('hitLeft');
+      const hitRight = document.getElementById('hitRight');
+      const hitTop = document.getElementById('hitTop');
+      const hitBottom = document.getElementById('hitBottom');
+
+      const hLeft = document.getElementById('hLeft');
+      const hRight = document.getElementById('hRight');
+      const hTop = document.getElementById('hTop');
+      const hBottom = document.getElementById('hBottom');
 
       const blueLinesBtn = document.getElementById('blueLinesBtn');
       const showCropChk = document.getElementById('showCropChk');
@@ -483,20 +518,20 @@
       let ratio = 1;
       let syncing = false;
 
-      // розмір поточного image2 (або останнього результату)
+      // Реальні розміри поточного image2 (після створення/контурів/обрізу)
       let lastW = 0;
       let lastH = 0;
 
-      // режим експорту TXT
+      // Режим експорту TXT: gray255 або contour01
       let exportMode = 'gray255';
 
-      // Координати синіх ліній у просторі image2
-      // ВАЖЛИВО: можуть бути дробові (наприклад 10.5), бо це "центр пари"
+      // Координати ліній у просторі image2
+      // (можуть бути дробові .5, бо лінія ставиться по центру пари)
       let lastBlue = null; // { leftX, rightX, topY, bottomY, w, h }
 
-      // Стани перетягування
+      // Drag стан
       let isDragging = false;
-      let dragTarget = null; // 'L' | 'R' | 'T' | 'B'
+      let dragTarget = null; // 'L'|'R'|'T'|'B'
 
       // =========================================================
       // 3) UTILS
@@ -547,13 +582,27 @@
         if (img.decode) { try { await img.decode(); } catch(e) {} }
       }
 
+      // Блокуємо скрол сторінки на час перетягування (Android Chrome дуже це любить)
+      function lockPageScroll(lock){
+        document.body.style.overflow = lock ? 'hidden' : '';
+        document.documentElement.style.overflow = lock ? 'hidden' : '';
+      }
+
       // =========================================================
-      // 4) BLUE OVERLAY (малювання)
+      // 4) ВИМКНЕННЯ КОНТЕКСТНОГО МЕНЮ (довгий тап)
+      // =========================================================
+      [blueSvg, image2].forEach(el => {
+        el.addEventListener('contextmenu', (e) => e.preventDefault());
+        el.addEventListener('dragstart', (e) => e.preventDefault());
+      });
+
+      // =========================================================
+      // 5) BLUE OVERLAY: малювання ліній + прямокутника + ручок
       // =========================================================
       function hideBlueOverlay(){
+        blueSvg.classList.remove('edit');
         blueSvg.style.display = 'none';
         blueRect.style.display = 'none';
-        blueSvg.classList.remove('edit');
         lastBlue = null;
       }
       function setBlueViewBox(w, h){
@@ -561,11 +610,15 @@
       }
 
       /**
-       * Малюємо 4 лінії + (опційно) прямокутник.
-       * Плюс синхронізуємо "ручки" (drag-handle) у ті ж координати.
+       * Малюємо:
+       * - 4 лінії
+       * - прямокутник (якщо showRect)
+       * - хіт-лінії (прозорі, товсті) для пальця
+       * - ручки (кружечки) по центру кожної лінії
        */
       function setBlueLinesAndMaybeRect(blue, showRect){
         const { leftX, rightX, topY, bottomY, w, h } = blue;
+
         setBlueViewBox(w, h);
 
         const xL = leftX;
@@ -573,7 +626,7 @@
         const yT = topY;
         const yB = bottomY;
 
-        // --- видимі лінії ---
+        // Візуальні лінії
         blueLeft.setAttribute('x1', String(xL));
         blueLeft.setAttribute('x2', String(xL));
         blueLeft.setAttribute('y1', '0');
@@ -594,29 +647,44 @@
         blueBottom.setAttribute('y1', String(yB));
         blueBottom.setAttribute('y2', String(yB));
 
-        // --- "ручки" для перетягування (ті ж координати) ---
-        dragLeft.setAttribute('x1', String(xL));
-        dragLeft.setAttribute('x2', String(xL));
-        dragLeft.setAttribute('y1', '0');
-        dragLeft.setAttribute('y2', String(h));
+        // Хіт-лінії (прозорі, але "товсті")
+        hitLeft.setAttribute('x1', String(xL));
+        hitLeft.setAttribute('x2', String(xL));
+        hitLeft.setAttribute('y1', '0');
+        hitLeft.setAttribute('y2', String(h));
 
-        dragRight.setAttribute('x1', String(xR));
-        dragRight.setAttribute('x2', String(xR));
-        dragRight.setAttribute('y1', '0');
-        dragRight.setAttribute('y2', String(h));
+        hitRight.setAttribute('x1', String(xR));
+        hitRight.setAttribute('x2', String(xR));
+        hitRight.setAttribute('y1', '0');
+        hitRight.setAttribute('y2', String(h));
 
-        dragTop.setAttribute('x1', '0');
-        dragTop.setAttribute('x2', String(w));
-        dragTop.setAttribute('y1', String(yT));
-        dragTop.setAttribute('y2', String(yT));
+        hitTop.setAttribute('x1', '0');
+        hitTop.setAttribute('x2', String(w));
+        hitTop.setAttribute('y1', String(yT));
+        hitTop.setAttribute('y2', String(yT));
 
-        dragBottom.setAttribute('x1', '0');
-        dragBottom.setAttribute('x2', String(w));
-        dragBottom.setAttribute('y1', String(yB));
-        dragBottom.setAttribute('y2', String(yB));
+        hitBottom.setAttribute('x1', '0');
+        hitBottom.setAttribute('x2', String(w));
+        hitBottom.setAttribute('y1', String(yB));
+        hitBottom.setAttribute('y2', String(yB));
 
+        // Ручки (кружечки) по середині кожної лінії
+        hLeft.setAttribute('cx', String(xL));
+        hLeft.setAttribute('cy', String(h/2));
+
+        hRight.setAttribute('cx', String(xR));
+        hRight.setAttribute('cy', String(h/2));
+
+        hTop.setAttribute('cx', String(w/2));
+        hTop.setAttribute('cy', String(yT));
+
+        hBottom.setAttribute('cx', String(w/2));
+        hBottom.setAttribute('cy', String(yB));
+
+        // Показуємо SVG
         blueSvg.style.display = 'block';
 
+        // Прямокутник перетину
         if (showRect){
           const rx = Math.min(xL, xR);
           const ry = Math.min(yT, yB);
@@ -632,14 +700,8 @@
         }
       }
 
-      function updateBlueInfoLabel(){
-        if (!lastBlue) return;
-        image2Info.textContent =
-          `${lastBlue.w}×${lastBlue.h} (L=${lastBlue.leftX}, R=${lastBlue.rightX}, T=${lastBlue.topY}, B=${lastBlue.bottomY})`;
-      }
-
       // =========================================================
-      // 5) CLEAR ZONE 2
+      // 6) CLEAR ZONE 2
       // =========================================================
       function clearZone2(){
         image2.removeAttribute('src');
@@ -662,7 +724,7 @@
       }
 
       // =========================================================
-      // 6) LOAD IMAGE1
+      // 7) LOAD IMAGE1
       // =========================================================
       loadImage1Btn.addEventListener('click', () => image1File.click());
 
@@ -703,7 +765,7 @@
       });
 
       // =========================================================
-      // 7) SYNC FIELDS
+      // 8) SYNC FIELDS
       // =========================================================
       scalePct.addEventListener('input', () => {
         if (!image1Loaded || syncing) return;
@@ -732,7 +794,7 @@
       });
 
       // =========================================================
-      // 8) CREATE IMAGE2 (BW)
+      // 9) CREATE IMAGE2 (BW)
       // =========================================================
       createImage2Btn.addEventListener('click', function() {
         if (!image1Loaded || !image1.src) {
@@ -782,7 +844,7 @@
       });
 
       // =========================================================
-      // 9) CONTOUR (Sobel)
+      // 10) CONTOUR (Sobel)
       // =========================================================
       function getAdaptiveThreshold(edgeMag){
         const n = edgeMag.length;
@@ -916,7 +978,7 @@
       });
 
       // =========================================================
-      // 10) СИНІ ЛІНІЇ — "ДВІ ПІДРЯД МАКСИМАЛЬНІ"
+      // 11) СИНІ ЛІНІЇ — правило "ДВІ ПІДРЯД МАКСИМАЛЬНІ"
       // =========================================================
       function computeBlueByMaxPair(w, h){
         const canvas = document.createElement('canvas');
@@ -933,7 +995,7 @@
         for (let y = 0; y < h; y++){
           let rsum = 0;
           for (let x = 0; x < w; x++){
-            const v = data[idx]; // R (image2 = ч/б/контур)
+            const v = data[idx]; // R (бо image2 ч/б/контур)
             rsum += v;
             colSums[x] += v;
             idx += 4;
@@ -947,20 +1009,29 @@
         const topEnd = Math.max(1, Math.floor(h / 4));
         const bottomStart = Math.min(h-1, Math.floor(h - h / 4));
 
+        // Шукаємо пару з МАКС сумою: arr[i] + arr[i+1]
         function bestPairCenterFromArray(arr, a, b){
           const len = b - a + 1;
+
+          // якщо у зоні < 2 елементів — беремо просто максимум по одному
           if (len < 2){
-            let bestI = a, bestV = -Infinity;
+            let bestI = a;
+            let bestV = -Infinity;
             for (let i = a; i <= b; i++){
               const v = arr[i];
               if (v > bestV){ bestV = v; bestI = i; }
             }
             return bestI;
           }
-          let bestStart = a, bestSum = -Infinity;
+
+          let bestStart = a;
+          let bestSum = -Infinity;
           for (let i = a; i <= b - 1; i++){
             const s = arr[i] + arr[i+1];
-            if (s > bestSum){ bestSum = s; bestStart = i; }
+            if (s > bestSum){
+              bestSum = s;
+              bestStart = i;
+            }
           }
           return bestStart + 0.5; // центр пари
         }
@@ -987,9 +1058,13 @@
           return;
         }
 
-        lastBlue = computeBlueByMaxPair(w, h);
-        setBlueLinesAndMaybeRect(lastBlue, alsoRect);
-        updateBlueInfoLabel();
+        const blue = computeBlueByMaxPair(w, h);
+        lastBlue = blue;
+
+        setBlueLinesAndMaybeRect(blue, alsoRect);
+
+        image2Info.textContent =
+          `${w}×${h} (L=${blue.leftX}, R=${blue.rightX}, T=${blue.topY}, B=${blue.bottomY})`;
       }
 
       blueLinesBtn.addEventListener('click', async () => {
@@ -1001,138 +1076,158 @@
       });
 
       // =========================================================
-      // 10.1) РЕЖИМ "Показати обріз" => показати прямокутник + дозволити перетягування
+      // 12) РЕЖИМ "Показати обріз" = показати прямокутник + ДОЗВОЛИТИ drag
       // =========================================================
       showCropChk.addEventListener('change', async () => {
         if (!showCropChk.checked){
-          // Вихід з режиму редагування: прямокутник ховаємо, лінії залишаємо (за бажанням)
+          // ховаємо тільки прямокутник, але лінії можуть залишитись
+          blueSvg.classList.remove('edit');
+          lockPageScroll(false);
+
           if (lastBlue){
             setBlueLinesAndMaybeRect(lastBlue, false);
-            blueSvg.classList.remove('edit');
           }
           return;
         }
 
-        // Якщо ліній ще немає — рахуємо і одразу показуємо прямокутник
+        // Увімкнули: якщо ліній ще нема — рахуємо
         if (!lastBlue){
           await computeAndShowBlueLines(true);
         } else {
           setBlueLinesAndMaybeRect(lastBlue, true);
         }
 
-        // Вмикаємо режим перетягування (SVG починає приймати pointer events)
+        // Вмикаємо “редагування” (pointer-events + touch-action)
         blueSvg.classList.add('edit');
       });
 
       window.addEventListener('resize', () => {
-        // viewBox = натуральні координати, тому при ресайзі просто перемальовуємо ті ж значення
         if (lastBlue){
           setBlueLinesAndMaybeRect(lastBlue, showCropChk.checked);
         }
       });
 
       // =========================================================
-      // 10.2) ПЕРЕТЯГУВАННЯ ЛІНІЙ (коли showCropChk увімкнено)
+      // 13) DRAG ЛІНІЙ (палець/миша)
       //
-      // Ми тягнемо НЕ "видимі" лінії, а прозорі "drag-handle".
-      // Це дає:
-      //  - велику зону захоплення
-      //  - зручну роботу на мобільному
+      // Важливі моменти:
+      // - На Android треба:
+      //   1) touch-action:none на SVG у режимі редагування
+      //   2) у pointermove робити preventDefault() з {passive:false}
+      //   3) тимчасово блокувати overflow сторінки (щоб скрол не забирав жест)
       // =========================================================
 
+      // Переводимо координати події (clientX/clientY) в координати SVG (viewBox)
       function clientToSvgPoint(evt){
-        // Перетворюємо координати миші/пальця (clientX/Y) у координати viewBox (0..w, 0..h)
         const rect = blueSvg.getBoundingClientRect();
-        const w = (lastBlue && lastBlue.w) ? lastBlue.w : 1;
-        const h = (lastBlue && lastBlue.h) ? lastBlue.h : 1;
+        const w = lastBlue?.w || 1;
+        const h = lastBlue?.h || 1;
 
-        const cx = evt.clientX;
-        const cy = evt.clientY;
-
-        const x = (cx - rect.left) * (w / rect.width);
-        const y = (cy - rect.top) * (h / rect.height);
+        const x = (evt.clientX - rect.left) * (w / rect.width);
+        const y = (evt.clientY - rect.top) * (h / rect.height);
 
         return { x, y };
       }
 
-      function setDragTarget(t){
-        dragTarget = t;
-        isDragging = true;
-      }
-
-      function stopDrag(){
-        isDragging = false;
-        dragTarget = null;
-      }
-
-      function applyDragToBlue(x, y){
+      function normalizeBlueAfterDrag(){
         if (!lastBlue) return;
 
-        // Обмеження в межах image2
-        if (dragTarget === 'L'){
-          lastBlue.leftX = clamp(x, 0, lastBlue.w);
-        }
-        if (dragTarget === 'R'){
-          lastBlue.rightX = clamp(x, 0, lastBlue.w);
-        }
-        if (dragTarget === 'T'){
-          lastBlue.topY = clamp(y, 0, lastBlue.h);
-        }
-        if (dragTarget === 'B'){
-          lastBlue.bottomY = clamp(y, 0, lastBlue.h);
-        }
+        const w = lastBlue.w;
+        const h = lastBlue.h;
 
-        // Перемальовуємо: якщо чек увімкнений — прямокутник теж показуємо
+        // Кліп у межі
+        lastBlue.leftX = clamp(lastBlue.leftX, 0, w);
+        lastBlue.rightX = clamp(lastBlue.rightX, 0, w);
+        lastBlue.topY = clamp(lastBlue.topY, 0, h);
+        lastBlue.bottomY = clamp(lastBlue.bottomY, 0, h);
+
+        // Мінімальна ширина/висота прямокутника (щоб не схлопнувся)
+        const minSize = 1; // 1px у просторі image2
+        if (Math.abs(lastBlue.rightX - lastBlue.leftX) < minSize){
+          if (dragTarget === 'L') lastBlue.leftX = clamp(lastBlue.rightX - minSize, 0, w);
+          if (dragTarget === 'R') lastBlue.rightX = clamp(lastBlue.leftX + minSize, 0, w);
+        }
+        if (Math.abs(lastBlue.bottomY - lastBlue.topY) < minSize){
+          if (dragTarget === 'T') lastBlue.topY = clamp(lastBlue.bottomY - minSize, 0, h);
+          if (dragTarget === 'B') lastBlue.bottomY = clamp(lastBlue.topY + minSize, 0, h);
+        }
+      }
+
+      function redrawBlue(){
+        if (!lastBlue) return;
         setBlueLinesAndMaybeRect(lastBlue, showCropChk.checked);
-        updateBlueInfoLabel();
+        image2Info.textContent =
+          `${lastBlue.w}×${lastBlue.h} (L=${lastBlue.leftX}, R=${lastBlue.rightX}, T=${lastBlue.topY}, B=${lastBlue.bottomY})`;
       }
 
-      // Підписуємося на pointer events у "ручок"
-      function attachHandle(handleEl, targetChar){
-        handleEl.addEventListener('pointerdown', (evt) => {
-          // Перетягуємо тільки коли увімкнено "Показати обріз"
-          if (!showCropChk.checked) return;
-          if (!lastBlue) return;
+      function startDrag(target, evt){
+        if (!showCropChk.checked) return; // редагування тільки коли "Показати обріз"
+        if (!lastBlue) return;
 
-          // Захоплюємо pointer, щоб рух працював навіть якщо курсор вийшов за SVG
-          try { handleEl.setPointerCapture(evt.pointerId); } catch(e){}
+        dragTarget = target;
+        isDragging = true;
 
-          setDragTarget(targetChar);
-          evt.preventDefault();
-        });
+        // захоплюємо pointer, щоб рух ловився навіть якщо "вийшов" за елемент
+        try { evt.currentTarget.setPointerCapture(evt.pointerId); } catch(e){}
 
-        handleEl.addEventListener('pointermove', (evt) => {
-          if (!showCropChk.checked) return;
-          if (!isDragging || dragTarget !== targetChar) return;
-          const p = clientToSvgPoint(evt);
-          applyDragToBlue(p.x, p.y);
-          evt.preventDefault();
-        });
+        // блокуємо скрол сторінки на час drag
+        lockPageScroll(true);
 
-        const end = (evt) => {
-          if (dragTarget === targetChar){
-            stopDrag();
-            try { handleEl.releasePointerCapture(evt.pointerId); } catch(e){}
-            evt.preventDefault();
-          }
-        };
-
-        handleEl.addEventListener('pointerup', end);
-        handleEl.addEventListener('pointercancel', end);
-        handleEl.addEventListener('lostpointercapture', () => {
-          if (dragTarget === targetChar) stopDrag();
-        });
+        evt.preventDefault();
       }
 
-      attachHandle(dragLeft, 'L');
-      attachHandle(dragRight, 'R');
-      attachHandle(dragTop, 'T');
-      attachHandle(dragBottom, 'B');
+      function moveDrag(evt){
+        if (!showCropChk.checked) return;
+        if (!isDragging || !lastBlue) return;
+
+        const p = clientToSvgPoint(evt);
+
+        if (dragTarget === 'L') lastBlue.leftX = p.x;
+        if (dragTarget === 'R') lastBlue.rightX = p.x;
+        if (dragTarget === 'T') lastBlue.topY = p.y;
+        if (dragTarget === 'B') lastBlue.bottomY = p.y;
+
+        normalizeBlueAfterDrag();
+        redrawBlue();
+
+        // ключове для мобільного: не даємо браузеру скролити/зумити
+        evt.preventDefault();
+      }
+
+      function endDrag(){
+        if (!isDragging) return;
+        isDragging = false;
+        dragTarget = null;
+
+        lockPageScroll(false);
+      }
+
+      // Підключаємо drag до хіт-ліній і ручок
+      function attachDrag(el, target){
+        el.addEventListener('pointerdown', (evt) => startDrag(target, evt), { passive:false });
+        el.addEventListener('pointermove', (evt) => moveDrag(evt), { passive:false });
+        el.addEventListener('pointerup', () => endDrag(), { passive:true });
+        el.addEventListener('pointercancel', () => endDrag(), { passive:true });
+        el.addEventListener('lostpointercapture', () => endDrag(), { passive:true });
+
+        // додатково глушимо контекстне меню
+        el.addEventListener('contextmenu', (e) => e.preventDefault());
+      }
+
+      attachDrag(hitLeft, 'L');
+      attachDrag(hitRight, 'R');
+      attachDrag(hitTop, 'T');
+      attachDrag(hitBottom, 'B');
+
+      attachDrag(hLeft, 'L');
+      attachDrag(hRight, 'R');
+      attachDrag(hTop, 'T');
+      attachDrag(hBottom, 'B');
 
       // =========================================================
-      // 11) Обрізати:
+      // 14) Обрізати:
       //     - НЕ ріжемо image2
-      //     - Ріжемо image1, використовуючи прямокутник між синіми лініями image2
+      //     - Ріжемо image1, використовуючи прямокутник між лініями image2
       // =========================================================
       cropBtn.addEventListener('click', async () => {
         if (!image1Loaded || !image1.src){
@@ -1154,12 +1249,12 @@
           return;
         }
 
-        // Якщо ліній немає — рахуємо
+        // Якщо ліній нема — рахуємо, і одразу показуємо прямокутник
         if (!lastBlue || lastBlue.w !== w2 || lastBlue.h !== h2){
           await computeAndShowBlueLines(true);
         }
         if (!lastBlue){
-          alert('Не вдалося отримати сині лінії.');
+          alert('Не вдалося отримати лінії.');
           return;
         }
 
@@ -1169,15 +1264,17 @@
         let y0 = Math.min(lastBlue.topY, lastBlue.bottomY);
         let y1 = Math.max(lastBlue.topY, lastBlue.bottomY);
 
+        // Кліп до меж
         x0 = clamp(x0, 0, w2);
         x1 = clamp(x1, 0, w2);
         y0 = clamp(y0, 0, h2);
         y1 = clamp(y1, 0, h2);
 
+        // Мінімальний розмір 1px у просторі image2
         if (Math.abs(x1 - x0) < 1e-6) x1 = clamp(x0 + 1, 0, w2);
         if (Math.abs(y1 - y0) < 1e-6) y1 = clamp(y0 + 1, 0, h2);
 
-        // Мапимо у простір image1
+        // Мапимо прямокутник image2 -> image1
         const scaleX = baseW / w2;
         const scaleY = baseH / h2;
 
@@ -1188,8 +1285,8 @@
 
         sx1 = clamp(sx1, 0, baseW - 1);
         sy1 = clamp(sy1, 0, baseH - 1);
-        ex1 = clamp(ex1, sx1 + 1, baseW);
-        ey1 = clamp(ey1, sy1 + 1, baseH);
+        ex1 = clamp(ex1, sx1 + 1, baseW); // right edge (exclusive)
+        ey1 = clamp(ey1, sy1 + 1, baseH); // bottom edge (exclusive)
 
         const sw1 = Math.max(1, ex1 - sx1);
         const sh1 = Math.max(1, ey1 - sy1);
@@ -1199,8 +1296,10 @@
         canvas.height = sh1;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
+        // Беремо фрагмент з image1
         ctx.drawImage(image1, sx1, sy1, sw1, sh1, 0, 0, sw1, sh1);
 
+        // Якщо треба — конвертуємо в ч/б
         if (cropModeBW && cropModeBW.checked){
           const imgData = ctx.getImageData(0, 0, sw1, sh1);
           const d = imgData.data;
@@ -1220,6 +1319,7 @@
         lastW = sw1;
         lastH = sh1;
 
+        // синхронізуємо поля
         syncing = true;
         setWH(lastW, lastH);
         calcScaleFromWH();
@@ -1228,13 +1328,11 @@
         image2Width.textContent = lastW;
         image2Height.textContent = lastH;
 
-        // Після обрізу:
-        // - вимикаємо чек (бо нове image2 інше)
-        // - прибираємо оверлей (лінії треба рахувати заново)
+        // Після обрізу — редагування ліній вимикаємо
         showCropChk.checked = false;
         hideBlueOverlay();
 
-        // Вставляємо нове image2
+        // Вставляємо як нове image2
         const dataURL = canvas.toDataURL('image/png');
         image2.onload = () => {
           zone2Placeholder.style.display = 'none';
@@ -1246,7 +1344,7 @@
       });
 
       // =========================================================
-      // 12) SAVE PNG + TXT
+      // 15) SAVE PNG + TXT
       // =========================================================
       function pad2(n){ return String(n).padStart(2, '0'); }
       function getDateStamp(){
