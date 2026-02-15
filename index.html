@@ -266,9 +266,9 @@
 <body>
   <div class="app">
     <header>
-      <h1>ТН 16.01</h1>
+      <h1>ТН 16</h1>
       <div style="font-size:12px;color:#666;">
-        Сині лінії: шукаємо "смугу" з 2 підряд колонок/рядків з МАКС сумою • “Показати обріз” = синій прямокутник • “Обрізати” = ріже image1 і вставляє у Зону 2
+        колір обрізання 
       </div>
     </header>
 
@@ -517,9 +517,9 @@
        * Малюємо лінії рівно на координатах leftX/rightX/topY/bottomY.
        * (НЕ додаємо +0.5, бо тепер координата може бути .5 і це вже центр)
        */
-      /** blue; */
+      
       function setBlueLinesAndMaybeRect(blue, showRect){
-        const { leftX, rightX, topY, bottomY, w, h } = yellow; 
+        const { leftX, rightX, topY, bottomY, w, h } = blue; 
         
         setBlueViewBox(w, h);
 
