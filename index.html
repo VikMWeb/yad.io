@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ТН 10</title>
+  <title>ТН 17</title>
   <style>
     *{ box-sizing:border-box; }
     body{
@@ -32,15 +32,8 @@
       align-items:center;
       justify-content:space-between;
     }
-    header h1{
-      margin:0;
-      font-size:18px;
-    }
-    .content{
-      display:grid;
-      grid-template-columns: 1fr 330px;
-      gap:0;
-    }
+    header h1{ margin:0; font-size:18px; }
+    .content{ display:grid; grid-template-columns: 1fr 330px; gap:0; }
     .zones{
       padding:16px;
       display:grid;
@@ -66,8 +59,6 @@
       justify-content:space-between;
       align-items:center;
     }
-
-    /* ВИРІВНЮВАННЯ ПО ВЕРХУ + ШИРИНА ЗОНИ */
     .zone-body{
       flex:1;
       display:flex;
@@ -76,7 +67,9 @@
       padding:12px;
       padding-top:14px;
       overflow:auto;
+      width:100%;
     }
+    .img-wrap{ position:relative; width:100%; }
     img{
       width:100%;
       height:auto;
@@ -85,6 +78,30 @@
       background:#fff;
       border:1px solid #e6e6e6;
       display:block;
+    }
+
+    .blue-svg{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      pointer-events:none;
+      display:none;
+    }
+    .blue-line{
+      fill: transparent;
+      stroke: #1677ff;
+      stroke-width: 2;
+      stroke-dasharray: 7 6;
+      vector-effect: non-scaling-stroke;
+    }
+    .blue-rect{
+      fill: rgba(22,119,255,.10);
+      stroke: #1677ff;
+      stroke-width: 2;
+      stroke-dasharray: 7 6;
+      vector-effect: non-scaling-stroke;
+      display:none;
     }
 
     .placeholder{
@@ -117,6 +134,7 @@
       display:flex;
       gap:10px;
       margin-top:12px;
+      align-items:center;
     }
     .row > *{ flex:1; }
 
@@ -127,10 +145,7 @@
       border:1px solid #eee;
       border-radius:12px;
     }
-    .card h3{
-      margin:0 0 10px 0;
-      font-size:14px;
-    }
+    .card h3{ margin:0 0 10px 0; font-size:14px; }
     .meta{
       font-size:13px;
       color:#222;
@@ -162,9 +177,7 @@
       grid-template-columns: 1fr 1fr;
       gap:8px;
     }
-    .inputs.one{
-      grid-template-columns: 1fr;
-    }
+    .inputs.one{ grid-template-columns: 1fr; }
     .field input{
       width:100%;
       padding:10px 10px;
@@ -175,11 +188,7 @@
       min-width:0;
     }
     .field input:focus{ border-color:#1677ff; }
-    .hint{
-      font-size:12px;
-      color:#666;
-      line-height:1.25;
-    }
+    .hint{ font-size:12px; color:#666; line-height:1.25; }
 
     .toggle{
       display:flex;
@@ -192,6 +201,25 @@
     }
     .toggle input{ transform: translateY(1px); }
 
+    .toggle-pill{
+      margin:0;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid #ddd;
+      background:#fff;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      font-weight:700;
+      color:#111;
+      font-size:12px;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .toggle-pill input{ transform:none; margin:0; }
+
     @media (max-width: 900px){
       .content{ grid-template-columns:1fr; }
       aside{ border-left:none; border-top:1px solid #eee; }
@@ -203,8 +231,10 @@
 <body>
   <div class="app">
     <header>
-      <h1>ТН 10</h1>
-      <div style="font-size:12px;color:#666;">Зона 1: завантаження • Зона 2: ч/б з image1 • Контур з image2</div>
+      <h1>ТН 17</h1>
+      <div style="font-size:12px;color:#666;">
+        “Обрізати” ріже image1 за синім прямокутником (з image2) і вставляє в Зону 2 • Перемикач: кольорове/ч-б
+      </div>
     </header>
 
     <div class="content">
@@ -231,7 +261,17 @@
             <div class="placeholder" id="zone2Placeholder">
               Завантаж image1 → налаштуй масштаб/розмір → “Створити image2”.
             </div>
-            <img id="image2" alt="image2" style="display:none;">
+
+            <div class="img-wrap" id="image2Wrap" style="display:none;">
+              <img id="image2" alt="image2" style="display:none;">
+              <svg class="blue-svg" id="blueSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <line class="blue-line" id="blueLeft"></line>
+                <line class="blue-line" id="blueRight"></line>
+                <line class="blue-line" id="blueTop"></line>
+                <line class="blue-line" id="blueBottom"></line>
+                <rect class="blue-rect" id="blueRect"></rect>
+              </svg>
+            </div>
           </div>
         </section>
       </div>
@@ -243,7 +283,7 @@
         <div class="field">
           <label>Масштаб, %</label>
           <div class="inputs one">
-            <input id="scalePct" type="number" min="1" max="1000" step="1" value="100" placeholder="100">
+            <input id="scalePct" type="number" min="1" max="1000" step="1" value="100">
           </div>
           <div class="hint">Міняє роздільність image2 відносно image1.</div>
         </div>
@@ -266,9 +306,25 @@
         <button class="btn ghost" id="contourBtn">Контур (0/255) з image2</button>
         <button class="btn ghost" id="contour01Btn">Контур 0/1 (з image2)</button>
 
+        <button class="btn ghost" id="blueLinesBtn">Сині лінії (ліва/права/верх/низ)</button>
+
+        <!-- ✅ новий перемикач -->
+        <label class="toggle" style="margin-top:10px;">
+          <input type="checkbox" id="cropToBWChk" checked>
+          Обріз: у ч-б (вимкни = кольорове)
+        </label>
+
         <div class="row">
-          <button class="btn secondary" id="createImage2Btn">Створити image2</button>
-          <button class="btn ghost" id="saveImage2Btn">Зберегти image2</button>
+          <label class="toggle-pill" title="Показати прямокутник, який утворився перетином синіх ліній">
+            <input type="checkbox" id="showCropChk">
+            Показати обріз
+          </label>
+          <button class="btn ghost" id="cropBtn" style="margin:0;">Обрізати</button>
+        </div>
+
+        <div class="row">
+          <button class="btn secondary" id="createImage2Btn" style="margin:0;">Створити image2</button>
+          <button class="btn ghost" id="saveImage2Btn" style="margin:0;">Зберегти image2</button>
         </div>
 
         <button class="btn ghost" id="savePixelValuesBtn">Зберегти pixel.txt</button>
@@ -290,6 +346,20 @@
     document.addEventListener('DOMContentLoaded', function() {
       const image1 = document.getElementById('image1');
       const image2 = document.getElementById('image2');
+      const image2Wrap = document.getElementById('image2Wrap');
+
+      const blueSvg = document.getElementById('blueSvg');
+      const blueLeft = document.getElementById('blueLeft');
+      const blueRight = document.getElementById('blueRight');
+      const blueTop = document.getElementById('blueTop');
+      const blueBottom = document.getElementById('blueBottom');
+      const blueRect = document.getElementById('blueRect');
+
+      const blueLinesBtn = document.getElementById('blueLinesBtn');
+      const showCropChk = document.getElementById('showCropChk');
+      const cropBtn = document.getElementById('cropBtn');
+
+      const cropToBWChk = document.getElementById('cropToBWChk'); // ✅
 
       const loadImage1Btn = document.getElementById('loadImage1Btn');
       const image1File = document.getElementById('image1File');
@@ -320,12 +390,11 @@
       let ratio = 1;
       let syncing = false;
 
-      // реальна роздільність створеного image2 (для TXT і PNG)
       let lastW = 0;
       let lastH = 0;
 
-      // режим збереження TXT: 'gray255' або 'contour01'
       let exportMode = 'gray255';
+      let lastBlue = null;
 
       function toInt(v){
         const n = parseInt(String(v).trim(), 10);
@@ -343,9 +412,7 @@
       function calcWHfromScale(){
         if (!image1Loaded || !baseW || !baseH) return;
         const pct = clamp(toInt(scalePct.value) ?? 100, 1, 1000);
-        const w = baseW * pct / 100;
-        const h = baseH * pct / 100;
-        setWH(w, h);
+        setWH(baseW * pct / 100, baseH * pct / 100);
       }
       function calcScaleFromWH(){
         if (!image1Loaded || !baseW || !baseH) return;
@@ -359,8 +426,7 @@
         if (!image1Loaded) return;
         const w = clamp(toInt(outW.value) ?? 1, 1);
         if (lockRatio.checked){
-          const h = Math.max(1, Math.round(w / ratio));
-          outH.value = String(h);
+          outH.value = String(Math.max(1, Math.round(w / ratio)));
         }
         calcScaleFromWH();
       }
@@ -368,17 +434,77 @@
         if (!image1Loaded) return;
         const h = clamp(toInt(outH.value) ?? 1, 1);
         if (lockRatio.checked){
-          const w = Math.max(1, Math.round(h * ratio));
-          outW.value = String(w);
+          outW.value = String(Math.max(1, Math.round(h * ratio)));
         }
         calcScaleFromWH();
       }
 
-      // ======= ОЧИСТКА ЗОНИ 2 =======
+      async function ensureImageReady(img){
+        if (img.decode) { try { await img.decode(); } catch(e) {} }
+      }
+
+      function hideBlueOverlay(){
+        blueSvg.style.display = 'none';
+        blueRect.style.display = 'none';
+        lastBlue = null;
+      }
+      function setBlueViewBox(w, h){
+        blueSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      }
+
+      function setBlueLinesAndMaybeRect(blue, showRect){
+        const { leftX, rightX, topY, bottomY, w, h } = blue;
+        setBlueViewBox(w, h);
+
+        const xL = leftX + 0.5;
+        const xR = rightX + 0.5;
+        const yT = topY + 0.5;
+        const yB = bottomY + 0.5;
+
+        blueLeft.setAttribute('x1', String(xL));
+        blueLeft.setAttribute('x2', String(xL));
+        blueLeft.setAttribute('y1', '0');
+        blueLeft.setAttribute('y2', String(h));
+
+        blueRight.setAttribute('x1', String(xR));
+        blueRight.setAttribute('x2', String(xR));
+        blueRight.setAttribute('y1', '0');
+        blueRight.setAttribute('y2', String(h));
+
+        blueTop.setAttribute('x1', '0');
+        blueTop.setAttribute('x2', String(w));
+        blueTop.setAttribute('y1', String(yT));
+        blueTop.setAttribute('y2', String(yT));
+
+        blueBottom.setAttribute('x1', '0');
+        blueBottom.setAttribute('x2', String(w));
+        blueBottom.setAttribute('y1', String(yB));
+        blueBottom.setAttribute('y2', String(yB));
+
+        blueSvg.style.display = 'block';
+
+        if (showRect){
+          const rx = Math.min(xL, xR);
+          const ry = Math.min(yT, yB);
+          const rw = Math.max(1, Math.abs(xR - xL));
+          const rh = Math.max(1, Math.abs(yB - yT));
+          blueRect.setAttribute('x', String(rx));
+          blueRect.setAttribute('y', String(ry));
+          blueRect.setAttribute('width', String(rw));
+          blueRect.setAttribute('height', String(rh));
+          blueRect.style.display = 'block';
+        } else {
+          blueRect.style.display = 'none';
+        }
+      }
+
       function clearZone2(){
         image2.removeAttribute('src');
         image2.style.display = 'none';
+
+        image2Wrap.style.display = 'none';
         zone2Placeholder.style.display = 'block';
+
         image2Info.textContent = 'не створено';
 
         image2Width.textContent = '—';
@@ -387,18 +513,46 @@
 
         lastW = 0;
         lastH = 0;
-
         exportMode = 'gray255';
+
+        showCropChk.checked = false;
+        hideBlueOverlay();
       }
 
-      // ======= ЗАВАНТАЖЕННЯ image1 =======
-      loadImage1Btn.addEventListener('click', () => image1File.click());
+      // ======= grayscale helper =======
+      function grayscaleCanvas(ctx, w, h){
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4){
+          const r = d[i], g = d[i+1], b = d[i+2];
+          const gray = Math.round(0.299*r + 0.587*g + 0.114*b);
+          d[i] = d[i+1] = d[i+2] = gray;
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
 
+      async function setImage2FromCanvas(canvas, labelText){
+        const dataURL = canvas.toDataURL('image/png');
+        image2.onload = () => {
+          zone2Placeholder.style.display = 'none';
+          image2Wrap.style.display = 'block';
+          image2.style.display = 'block';
+          image2Info.textContent = labelText;
+
+          lastBlue = null;
+          blueSvg.style.display = 'none';
+          blueRect.style.display = 'none';
+          showCropChk.checked = false;
+        };
+        image2.src = dataURL;
+      }
+
+      // ======= image1 =======
+      loadImage1Btn.addEventListener('click', () => image1File.click());
       image1File.addEventListener('change', function() {
         const file = this.files && this.files[0];
         if (!file) return;
 
-        // 1) при завантаженні image1 — очищаємо зону 2
         clearZone2();
 
         const url = URL.createObjectURL(file);
@@ -431,41 +585,25 @@
         image1.src = url;
       });
 
-      // Масштаб -> width/height
       scalePct.addEventListener('input', () => {
-        if (!image1Loaded) return;
-        if (syncing) return;
-        syncing = true;
-        calcWHfromScale();
-        syncing = false;
+        if (!image1Loaded || syncing) return;
+        syncing = true; calcWHfromScale(); syncing = false;
       });
-
-      // width/height -> масштаб (+ пропорції)
       outW.addEventListener('input', () => {
-        if (!image1Loaded) return;
-        if (syncing) return;
-        syncing = true;
-        onWChanged();
-        syncing = false;
+        if (!image1Loaded || syncing) return;
+        syncing = true; onWChanged(); syncing = false;
       });
-
       outH.addEventListener('input', () => {
-        if (!image1Loaded) return;
-        if (syncing) return;
-        syncing = true;
-        onHChanged();
-        syncing = false;
+        if (!image1Loaded || syncing) return;
+        syncing = true; onHChanged(); syncing = false;
       });
-
       lockRatio.addEventListener('change', () => {
         if (!image1Loaded) return;
         if (!lockRatio.checked) return;
-        syncing = true;
-        onWChanged();
-        syncing = false;
+        syncing = true; onWChanged(); syncing = false;
       });
 
-      // ======= СТВОРЕННЯ image2 з image1 (Ч/Б) =======
+      // ======= image2 create =======
       createImage2Btn.addEventListener('click', function() {
         if (!image1Loaded || !image1.src) {
           alert('Спочатку завантаж image1 у Зону 1.');
@@ -483,26 +621,10 @@
         canvas.height = height;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-        ctx.clearRect(0, 0, width, height);
         ctx.drawImage(image1, 0, 0, width, height);
+        grayscaleCanvas(ctx, width, height);
 
-        const imgData = ctx.getImageData(0, 0, width, height);
-        const d = imgData.data;
-
-        for (let i = 0; i < d.length; i += 4) {
-          const r = d[i], g = d[i+1], b = d[i+2];
-          const gray = Math.round(0.299*r + 0.587*g + 0.114*b);
-          d[i] = d[i+1] = d[i+2] = gray;
-        }
-        ctx.putImageData(imgData, 0, 0);
-
-        const dataURL = canvas.toDataURL('image/png');
-        image2.onload = () => {
-          zone2Placeholder.style.display = 'none';
-          image2.style.display = 'block';
-          image2Info.textContent = `${width}×${height}`;
-        };
-        image2.src = dataURL;
+        setImage2FromCanvas(canvas, `${width}×${height}`);
 
         image2Width.textContent = width;
         image2Height.textContent = height;
@@ -510,15 +632,13 @@
         exportMode = 'gray255';
       });
 
-      // ======= КОНТУР (з image2) =======
+      // ======= contour =======
       function getAdaptiveThreshold(edgeMag){
-        // проста адаптація: mean + 0.5*std
         const n = edgeMag.length;
         if (!n) return 80;
         let sum = 0;
         for (let i = 0; i < n; i++) sum += edgeMag[i];
         const mean = sum / n;
-
         let v = 0;
         for (let i = 0; i < n; i++){
           const d = edgeMag[i] - mean;
@@ -539,13 +659,11 @@
         const imgData = ctx.getImageData(0, 0, w, h);
         const d = imgData.data;
 
-        // grayscale buffer
         const gray = new Uint8ClampedArray(w * h);
         for (let i = 0, p = 0; i < d.length; i += 4, p++){
-          gray[p] = d[i]; // r
+          gray[p] = d[i];
         }
 
-        // Sobel
         const mag = new Float32Array(w * h);
         const gxK = [-1,0,1,-2,0,2,-1,0,1];
         const gyK = [-1,-2,-1,0,0,0,1,2,1];
@@ -562,153 +680,292 @@
                 k++;
               }
             }
-            const m = Math.min(255, Math.hypot(gx, gy));
-            mag[y * w + x] = m;
+            mag[y * w + x] = Math.min(255, Math.hypot(gx, gy));
           }
         }
 
         const t = getAdaptiveThreshold(mag);
 
-        // output
         const out = ctx.createImageData(w, h);
         const od = out.data;
 
         for (let p = 0; p < w*h; p++){
           const isEdge = mag[p] >= t ? 1 : 0;
-
-          // для відображення: 0->0, 1->255
           const disp = isEdge ? 0 : 255;
-
           const i = p * 4;
           od[i] = od[i+1] = od[i+2] = disp;
           od[i+3] = 255;
         }
 
         ctx.putImageData(out, 0, 0);
-
-        // важливо: режим збереження TXT
         exportMode = mode01 ? 'contour01' : 'gray255';
-
         return canvas;
       }
 
-      async function ensureImageReady(img){
-        if (img.decode) {
-          try { await img.decode(); } catch(e) {}
-        }
-      }
-
-      // Контур 0/255 (як було)
       contourBtn.addEventListener('click', async function(){
         if (!image2.src || image2.style.display === 'none') {
           alert('Спочатку створіть image2 у Зоні 2.');
           return;
         }
-
         await ensureImageReady(image2);
-
         const w = lastW || image2.naturalWidth;
         const h = lastH || image2.naturalHeight;
-
-        if (!w || !h){
-          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
-          return;
-        }
-
         const canvas = makeContoursCanvasFromImage(image2, w, h, false);
-        const dataURL = canvas.toDataURL('image/png');
-
-        image2.onload = () => {
-          zone2Placeholder.style.display = 'none';
-          image2.style.display = 'block';
-          image2Info.textContent = `${w}×${h} (контур)`;
-        };
-        image2.src = dataURL;
-
-        lastW = w; lastH = h;
-
+        await setImage2FromCanvas(canvas, `${w}×${h} (контур)`);
+        image2Color.textContent = 'Контури (0/255)';
         image2Width.textContent = w;
         image2Height.textContent = h;
-        image2Color.textContent = 'Контури (0/255)';
       });
 
-      // Контур 0/1 (НОВЕ)
       contour01Btn.addEventListener('click', async function(){
         if (!image2.src || image2.style.display === 'none') {
           alert('Спочатку створіть image2 у Зоні 2.');
           return;
         }
+        await ensureImageReady(image2);
+        const w = lastW || image2.naturalWidth;
+        const h = lastH || image2.naturalHeight;
+        const canvas = makeContoursCanvasFromImage(image2, w, h, true);
+        await setImage2FromCanvas(canvas, `${w}×${h} (контур 0/1)`);
+        image2Color.textContent = 'Контури (0/1 для TXT)';
+        image2Width.textContent = w;
+        image2Height.textContent = h;
+      });
 
+      // ======= blue lines compute =======
+      function computeMinInHalves(w, h){
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(image2, 0, 0, w, h);
+        const data = ctx.getImageData(0, 0, w, h).data;
+
+        const midXL = Math.floor(w / 4);
+        const midXR = Math.floor(w - midXL);
+        const midYT = Math.floor(h / 4);
+        const midYB = Math.floor(h - midYT);
+
+        function colSum(x){
+          let sum = 0;
+          let idx = x * 4;
+          for (let y = 0; y < h; y++){
+            sum += data[idx];
+            idx += w * 4;
+          }
+          return sum;
+        }
+
+        let bestLeftX = 0, bestLeftSum = Infinity;
+        const leftEnd = Math.max(1, midXL);
+        for (let x = 0; x < leftEnd; x++){
+          const s = colSum(x);
+          if (s < bestLeftSum){ bestLeftSum = s; bestLeftX = x; }
+        }
+
+        let bestRightX = Math.min(w-1, Math.max(0, midXR)), bestRightSum = Infinity;
+        const rightStart = Math.min(w-1, Math.max(0, midXR));
+        for (let x = rightStart; x < w; x++){
+          const s = colSum(x);
+          if (s < bestRightSum){ bestRightSum = s; bestRightX = x; }
+        }
+
+        function rowSum(y){
+          let sum = 0;
+          let idx = (y * w) * 4;
+          for (let x = 0; x < w; x++){
+            sum += data[idx];
+            idx += 4;
+          }
+          return sum;
+        }
+
+        let bestTopY = 0, bestTopSum = Infinity;
+        const topEnd = Math.max(1, midYT);
+        for (let y = 0; y < topEnd; y++){
+          const s = rowSum(y);
+          if (s < bestTopSum){ bestTopSum = s; bestTopY = y; }
+        }
+
+        let bestBottomY = Math.min(h-1, Math.max(0, midYB)), bestBottomSum = Infinity;
+        const bottomStart = Math.min(h-1, Math.max(0, midYB));
+        for (let y = bottomStart; y < h; y++){
+          const s = rowSum(y);
+          if (s < bestBottomSum){ bestBottomSum = s; bestBottomY = y; }
+        }
+
+        return { leftX: bestLeftX, rightX: bestRightX, topY: bestTopY, bottomY: bestBottomY, w, h };
+      }
+
+      async function computeAndShowBlueLines(alsoRect){
+        if (!image2.src || image2.style.display === 'none'){
+          hideBlueOverlay();
+          return null;
+        }
         await ensureImageReady(image2);
 
         const w = lastW || image2.naturalWidth;
         const h = lastH || image2.naturalHeight;
-
         if (!w || !h){
+          hideBlueOverlay();
+          return null;
+        }
+
+        const blue = computeMinInHalves(w, h);
+        lastBlue = blue;
+        setBlueLinesAndMaybeRect(blue, alsoRect);
+        image2Info.textContent = `${w}×${h} (L=${blue.leftX}, R=${blue.rightX}, T=${blue.topY}, B=${blue.bottomY})`;
+        return blue;
+      }
+
+      blueLinesBtn.addEventListener('click', async () => {
+        if (!image2.src || image2.style.display === 'none') {
+          alert('Спочатку створіть image2 у Зоні 2.');
+          return;
+        }
+        await computeAndShowBlueLines(showCropChk.checked);
+      });
+
+      showCropChk.addEventListener('change', async () => {
+        if (!showCropChk.checked){
+          if (lastBlue) setBlueLinesAndMaybeRect(lastBlue, false);
+          return;
+        }
+        if (!lastBlue) await computeAndShowBlueLines(true);
+        else setBlueLinesAndMaybeRect(lastBlue, true);
+      });
+
+      window.addEventListener('resize', () => {
+        if (lastBlue) setBlueLinesAndMaybeRect(lastBlue, showCropChk.checked);
+      });
+
+      // ======= crop image1 by blue rect =======
+      function getBlueRectBoxInImage2(blue){
+        const { leftX, rightX, topY, bottomY, w, h } = blue;
+        const x1 = clamp(Math.min(leftX, rightX), 0, w-1);
+        const x2 = clamp(Math.max(leftX, rightX), 0, w-1);
+        const y1 = clamp(Math.min(topY, bottomY), 0, h-1);
+        const y2 = clamp(Math.max(topY, bottomY), 0, h-1);
+        const rw = x2 - x1 + 1;
+        const rh = y2 - y1 + 1;
+        return { x1, y1, rw, rh, w, h };
+      }
+
+      function mapRectImage2toImage1(rect2){
+        const sx = baseW / rect2.w;
+        const sy = baseH / rect2.h;
+
+        const srcX = Math.floor(rect2.x1 * sx);
+        const srcY = Math.floor(rect2.y1 * sy);
+        const srcW = Math.ceil(rect2.rw * sx);
+        const srcH = Math.ceil(rect2.rh * sy);
+
+        const x = clamp(srcX, 0, baseW - 1);
+        const y = clamp(srcY, 0, baseH - 1);
+        const w = clamp(srcW, 1, baseW - x);
+        const h = clamp(srcH, 1, baseH - y);
+
+        return { x, y, w, h };
+      }
+
+      cropBtn.addEventListener('click', async () => {
+        if (!image1Loaded || !image1.src) {
+          alert('Спочатку завантаж image1 у Зону 1.');
+          return;
+        }
+        if (!image2.src || image2.style.display === 'none') {
+          alert('Спочатку створи image2 (щоб були координати для синього прямокутника).');
+          return;
+        }
+
+        if (!lastBlue){
+          const b = await computeAndShowBlueLines(true);
+          if (!b){
+            alert('Не вдалося побудувати сині лінії.');
+            return;
+          }
+        } else {
+          if (showCropChk.checked) setBlueLinesAndMaybeRect(lastBlue, true);
+        }
+
+        await ensureImageReady(image1);
+        await ensureImageReady(image2);
+
+        const w2 = lastW || image2.naturalWidth;
+        const h2 = lastH || image2.naturalHeight;
+        if (!w2 || !h2){
           alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
           return;
         }
 
-        const canvas = makeContoursCanvasFromImage(image2, w, h, true);
-        const dataURL = canvas.toDataURL('image/png');
+        const rect2 = getBlueRectBoxInImage2({ ...lastBlue, w: w2, h: h2 });
+        if (rect2.rw <= 1 || rect2.rh <= 1){
+          alert('Синій прямокутник занадто малий (1px). Перерахуй сині лінії або інше зображення.');
+          return;
+        }
 
-        image2.onload = () => {
-          zone2Placeholder.style.display = 'none';
-          image2.style.display = 'block';
-          image2Info.textContent = `${w}×${h} (контур 0/1)`;
-        };
-        image2.src = dataURL;
+        const rect1 = mapRectImage2toImage1(rect2);
 
-        lastW = w; lastH = h;
+        const canvas = document.createElement('canvas');
+        canvas.width = rect2.rw;
+        canvas.height = rect2.rh;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-        image2Width.textContent = w;
-        image2Height.textContent = h;
-        image2Color.textContent = 'Контури (0/1 для TXT)';
+        ctx.drawImage(
+          image1,
+          rect1.x, rect1.y, rect1.w, rect1.h,
+          0, 0, rect2.rw, rect2.rh
+        );
+
+        // ✅ перемикач: у ч-б / у кольорі
+        const makeBW = !!cropToBWChk.checked;
+        if (makeBW){
+          grayscaleCanvas(ctx, rect2.rw, rect2.rh);
+          exportMode = 'gray255';
+          image2Color.textContent = 'Чорно-біле (обріз image1)';
+        } else {
+          exportMode = 'gray255'; // для TXT беремо R-канал; хочеш — зроблю луму
+          image2Color.textContent = 'Кольорове (обріз image1)';
+        }
+
+        lastW = rect2.rw;
+        lastH = rect2.rh;
+
+        syncing = true;
+        setWH(lastW, lastH);
+        calcScaleFromWH();
+        syncing = false;
+
+        image2Width.textContent = lastW;
+        image2Height.textContent = lastH;
+
+        await setImage2FromCanvas(canvas, `${lastW}×${lastH} (обріз image1 по синьому прямокутнику)`);
       });
 
-      // ======= ІМ’Я ФАЙЛІВ (однаково для PNG і TXT) =======
+      // ======= save image2 / txt =======
       function pad2(n){ return String(n).padStart(2, '0'); }
       function getDateStamp(){
         const d = new Date();
-        const y = d.getFullYear();
-        const m = pad2(d.getMonth() + 1);
-        const day = pad2(d.getDate());
-        const hh = pad2(d.getHours());
-        const mm = pad2(d.getMinutes());
-        const ss = pad2(d.getSeconds());
-        return `${y}${m}${day}_${hh}${mm}${ss}`;
+        return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
       }
       function getBaseFilename(w, h){
-        const stamp = getDateStamp();
-        return `ImgPix_${stamp}_${w}x${h}`;
+        return `ImgPix_${getDateStamp()}_${w}x${h}`;
       }
 
-      // ======= ЗБЕРЕЖЕННЯ image2 (назва як TXT) =======
       saveImage2Btn.addEventListener('click', async function() {
         if (!image2.src || image2.style.display === 'none') {
           alert('Спочатку створіть image2.');
           return;
         }
-
         await ensureImageReady(image2);
-
         const w = lastW || image2.naturalWidth;
         const h = lastH || image2.naturalHeight;
-
-        if (!w || !h) {
-          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
-          return;
-        }
-
-        const filename = `${getBaseFilename(w, h)}.png`;
-
         const link = document.createElement('a');
         link.href = image2.src;
-        link.download = filename;
+        link.download = `${getBaseFilename(w, h)}.png`;
         link.click();
       });
 
-      // ======= TXT: матриця через "." =======
       savePixelValuesBtn.addEventListener('click', async function() {
         if (!image2.src || image2.style.display === 'none') {
           alert('Спочатку створіть image2.');
@@ -716,18 +973,11 @@
         }
 
         await ensureImageReady(image2);
-
         const w = lastW || image2.naturalWidth;
         const h = lastH || image2.naturalHeight;
 
-        if (!w || !h) {
-          alert('image2 ще не завантажилось. Натисни ще раз через секунду.');
-          return;
-        }
-
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
         canvas.width = w;
         canvas.height = h;
         ctx.drawImage(image2, 0, 0, w, h);
@@ -740,32 +990,19 @@
         for (let y = 0; y < h; y++) {
           const row = new Array(w);
           for (let x = 0; x < w; x++) {
-            const r = data[idx]; // Gray = R (у контурі теж 0 або 255)
-            let v;
-
-            if (exportMode === 'contour01') {
-              // 0/1
-              v = (r >= 128) ? 1 : 0;
-            } else {
-              // Gray 0..255
-              v = r;
-            }
-
+            const r = data[idx];
+            const v = (exportMode === 'contour01') ? ((r >= 128) ? 1 : 0) : r;
             row[x] = String(v);
             idx += 4;
           }
           lines.push(row.join('.'));
         }
 
-        const base = getBaseFilename(w, h);
-        const filename = `${base}.txt`;
-
         const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = filename;
+        link.download = `${getBaseFilename(w, h)}.txt`;
         link.click();
-
         setTimeout(() => URL.revokeObjectURL(link.href), 1000);
       });
 
